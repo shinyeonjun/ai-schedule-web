@@ -1,0 +1,304 @@
+from supabase import create_client, Client
+from typing import List, Optional, Dict, Any
+from datetime import datetime, date, time
+import os
+import json
+from uuid import UUID, uuid4
+from dotenv import load_dotenv
+
+# 환경 변수 로드
+load_dotenv()
+
+from models.analysis import (
+    AnalysisResultData, 
+    AnalysisResult, 
+    ScheduleData, 
+    ParticipantData, 
+    ActionData
+)
+
+class DatabaseService:
+    def __init__(self):
+        self.supabase_url = os.getenv("SUPABASE_URL", "https://nzfdjdytuqptiqveivtt.supabase.co")
+        self.supabase_key = os.getenv("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56ZmRqZHl0dXFwdGlxdmVpdnR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3ODA4NjAsImV4cCI6MjA2NjM1Njg2MH0.fzKY30Nif_agTPpSULceeU2h_DAbqSd4NRaJRVRAjKs")
+        
+        if not self.supabase_url or not self.supabase_key:
+            raise ValueError("Supabase 환경 변수가 설정되지 않았습니다.")
+        
+        self.client: Client = create_client(self.supabase_url, self.supabase_key)
+    
+    async def save_analysis_result(self, analysis_data: AnalysisResultData) -> str:
+        """분석 결과를 데이터베이스에 저장"""
+        try:
+            # 메인 분석 결과 저장
+            analysis_id = str(uuid4())
+            
+            main_result = {
+                "id": analysis_id,
+                "type": analysis_data.type,
+                "source_name": analysis_data.source_name,
+                "source_content": analysis_data.source_content,
+                "summary": analysis_data.summary,
+                "description": analysis_data.description
+            }
+            
+            result = self.client.table("analysis_results").insert(main_result).execute()
+            
+            if not result.data:
+                raise Exception("분석 결과 저장 실패")
+            
+            # 일정 정보 저장
+            if analysis_data.schedules:
+                schedule_records = []
+                for schedule in analysis_data.schedules:
+                    schedule_record = {
+                        "id": str(uuid4()),
+                        "analysis_id": analysis_id,
+                        "title": schedule.title,
+                        "location": schedule.location,
+                        "start_date": schedule.start_date.isoformat() if schedule.start_date else None,
+                        "start_time": schedule.start_time.isoformat() if schedule.start_time else None,
+                        "end_date": schedule.end_date.isoformat() if schedule.end_date else None,
+                        "end_time": schedule.end_time.isoformat() if schedule.end_time else None
+                    }
+                    schedule_records.append(schedule_record)
+                
+                if schedule_records:
+                    self.client.table("analysis_schedules").insert(schedule_records).execute()
+            
+            # 참석자 정보 저장
+            if analysis_data.participants:
+                participant_records = []
+                for participant in analysis_data.participants:
+                    participant_record = {
+                        "id": str(uuid4()),
+                        "analysis_id": analysis_id,
+                        "name": participant.name,
+                        "role": participant.role,
+                        "email": participant.email
+                    }
+                    participant_records.append(participant_record)
+                
+                if participant_records:
+                    self.client.table("analysis_participants").insert(participant_records).execute()
+            
+            # 액션 아이템 저장
+            if analysis_data.actions:
+                action_records = []
+                for action in analysis_data.actions:
+                    action_record = {
+                        "id": str(uuid4()),
+                        "analysis_id": analysis_id,
+                        "text": action.text,
+                        "assignee": action.assignee,
+                        "due_date": action.due_date.isoformat() if action.due_date else None,
+                        "is_completed": action.is_completed
+                    }
+                    action_records.append(action_record)
+                
+                if action_records:
+                    self.client.table("analysis_actions").insert(action_records).execute()
+            
+            return analysis_id
+            
+        except Exception as e:
+            print(f"데이터베이스 저장 오류: {str(e)}")
+            raise Exception(f"분석 결과 저장 중 오류가 발생했습니다: {str(e)}")
+    
+    async def get_analysis_result(self, analysis_id: str) -> Optional[AnalysisResult]:
+        """특정 분석 결과 조회"""
+        try:
+            # 메인 분석 결과 조회
+            main_result = self.client.table("analysis_results").select("*").eq("id", analysis_id).execute()
+            
+            if not main_result.data:
+                return None
+            
+            analysis_data = main_result.data[0]
+            
+            # 일정 정보 조회
+            schedules_result = self.client.table("analysis_schedules").select("*").eq("analysis_id", analysis_id).execute()
+            schedules = []
+            for schedule_data in schedules_result.data:
+                schedule = ScheduleData(
+                    title=schedule_data.get("title"),
+                    location=schedule_data.get("location"),
+                    start_date=datetime.fromisoformat(schedule_data["start_date"]).date() if schedule_data.get("start_date") else None,
+                    start_time=datetime.fromisoformat(f"1970-01-01T{schedule_data['start_time']}").time() if schedule_data.get("start_time") else None,
+                    end_date=datetime.fromisoformat(schedule_data["end_date"]).date() if schedule_data.get("end_date") else None,
+                    end_time=datetime.fromisoformat(f"1970-01-01T{schedule_data['end_time']}").time() if schedule_data.get("end_time") else None
+                )
+                schedules.append(schedule)
+            
+            # 참석자 정보 조회
+            participants_result = self.client.table("analysis_participants").select("*").eq("analysis_id", analysis_id).execute()
+            participants = []
+            for participant_data in participants_result.data:
+                participant = ParticipantData(
+                    name=participant_data["name"],
+                    role=participant_data.get("role"),
+                    email=participant_data.get("email")
+                )
+                participants.append(participant)
+            
+            # 액션 아이템 조회
+            actions_result = self.client.table("analysis_actions").select("*").eq("analysis_id", analysis_id).execute()
+            actions = []
+            for action_data in actions_result.data:
+                action = ActionData(
+                    text=action_data["text"],
+                    assignee=action_data.get("assignee"),
+                    due_date=datetime.fromisoformat(action_data["due_date"]).date() if action_data.get("due_date") else None,
+                    is_completed=action_data.get("is_completed", False)
+                )
+                actions.append(action)
+            
+            # AnalysisResult 객체 생성
+            result = AnalysisResult(
+                id=UUID(analysis_data["id"]),
+                type=analysis_data["type"],
+                source_name=analysis_data["source_name"],
+                source_content=analysis_data.get("source_content"),
+                summary=analysis_data.get("summary"),
+                description=analysis_data.get("description"),
+                schedules=schedules,
+                participants=participants,
+                actions=actions,
+                created_at=datetime.fromisoformat(analysis_data["created_at"].replace("Z", "+00:00")),
+                updated_at=datetime.fromisoformat(analysis_data["updated_at"].replace("Z", "+00:00"))
+            )
+            
+            return result
+            
+        except Exception as e:
+            print(f"데이터베이스 조회 오류: {str(e)}")
+            raise Exception(f"분석 결과 조회 중 오류가 발생했습니다: {str(e)}")
+    
+    async def get_analysis_list(self, limit: int = 50, offset: int = 0) -> tuple[List[AnalysisResult], int]:
+        """분석 결과 목록 조회"""
+        try:
+            # 전체 개수 조회
+            count_result = self.client.table("analysis_results").select("id", count="exact").execute()
+            total_count = count_result.count or 0
+            
+            # 분석 결과 목록 조회 (최신순)
+            results = self.client.table("analysis_results").select("*").order("created_at", desc=True).range(offset, offset + limit - 1).execute()
+            
+            analysis_list = []
+            for analysis_data in results.data:
+                analysis_id = analysis_data["id"]
+                
+                # 각 분석 결과의 상세 정보 조회
+                result = await self.get_analysis_result(analysis_id)
+                if result:
+                    analysis_list.append(result)
+            
+            return analysis_list, total_count
+            
+        except Exception as e:
+            print(f"분석 목록 조회 오류: {str(e)}")
+            raise Exception(f"분석 목록 조회 중 오류가 발생했습니다: {str(e)}")
+    
+    async def delete_analysis_result(self, analysis_id: str) -> bool:
+        """분석 결과 삭제"""
+        try:
+            # CASCADE 설정으로 관련 데이터도 자동 삭제됨
+            result = self.client.table("analysis_results").delete().eq("id", analysis_id).execute()
+            return len(result.data) > 0
+            
+        except Exception as e:
+            print(f"분석 결과 삭제 오류: {str(e)}")
+            raise Exception(f"분석 결과 삭제 중 오류가 발생했습니다: {str(e)}")
+    
+    async def update_action_status(self, analysis_id: str, action_index: int, is_completed: bool) -> bool:
+        """액션 아이템 완료 상태 업데이트"""
+        try:
+            # 해당 분석의 액션 아이템들을 순서대로 조회
+            actions_result = self.client.table("analysis_actions").select("*").eq("analysis_id", analysis_id).order("created_at").execute()
+            
+            if action_index >= len(actions_result.data):
+                return False
+            
+            action_id = actions_result.data[action_index]["id"]
+            
+            # 상태 업데이트
+            result = self.client.table("analysis_actions").update({"is_completed": is_completed}).eq("id", action_id).execute()
+            
+            return len(result.data) > 0
+            
+        except Exception as e:
+            print(f"액션 상태 업데이트 오류: {str(e)}")
+            return False 
+
+    async def update_analysis_field(self, analysis_id: str, field: str, value: str) -> bool:
+        """분석 결과 특정 필드 업데이트"""
+        try:
+            # 메인 테이블 필드 업데이트
+            if field in ['summary', 'description']:
+                result = self.client.table("analysis_results").update({field: value}).eq("id", analysis_id).execute()
+                return len(result.data) > 0
+            
+            # 스케줄 테이블 필드 업데이트
+            elif field in ['location', 'startdate', 'enddate']:
+                # 해당 분석의 첫 번째 스케줄 조회
+                schedule_result = self.client.table("analysis_schedules").select("*").eq("analysis_id", analysis_id).limit(1).execute()
+                
+                if not schedule_result.data:
+                    # 스케줄이 없으면 새로 생성
+                    schedule_id = str(uuid4())
+                    schedule_data = {
+                        "id": schedule_id,
+                        "analysis_id": analysis_id,
+                        "title": "통화 일정"
+                    }
+                    
+                    if field == 'location':
+                        schedule_data['location'] = value
+                    elif field == 'startdate':
+                        # 날짜와 시간 분리
+                        if ' ' in value:
+                            date_part, time_part = value.split(' ', 1)
+                            schedule_data['start_date'] = date_part
+                            schedule_data['start_time'] = time_part
+                        else:
+                            schedule_data['start_date'] = value
+                    elif field == 'enddate':
+                        if ' ' in value:
+                            date_part, time_part = value.split(' ', 1)
+                            schedule_data['end_date'] = date_part
+                            schedule_data['end_time'] = time_part
+                        else:
+                            schedule_data['end_date'] = value
+                    
+                    result = self.client.table("analysis_schedules").insert(schedule_data).execute()
+                    return len(result.data) > 0
+                else:
+                    # 기존 스케줄 업데이트
+                    schedule_id = schedule_result.data[0]["id"]
+                    update_data = {}
+                    
+                    if field == 'location':
+                        update_data['location'] = value
+                    elif field == 'startdate':
+                        if ' ' in value:
+                            date_part, time_part = value.split(' ', 1)
+                            update_data['start_date'] = date_part
+                            update_data['start_time'] = time_part
+                        else:
+                            update_data['start_date'] = value
+                    elif field == 'enddate':
+                        if ' ' in value:
+                            date_part, time_part = value.split(' ', 1)
+                            update_data['end_date'] = date_part
+                            update_data['end_time'] = time_part
+                        else:
+                            update_data['end_date'] = value
+                    
+                    result = self.client.table("analysis_schedules").update(update_data).eq("id", schedule_id).execute()
+                    return len(result.data) > 0
+            
+            return False
+            
+        except Exception as e:
+            print(f"분석 필드 업데이트 오류: {str(e)}")
+            return False 

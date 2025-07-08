@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MUFI - 로그인</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+    <div class="login-container">
+        <!-- 왼쪽 브랜딩 섹션 -->
+        <div class="login-brand">
+            <div class="brand-content">
+                <!-- 로고 -->
+                <div class="brand-logo">
+                    <h1>MUFI</h1>
+                    <div class="logo-subtitle">AI 통화 분석 & 일정 관리</div>
+                </div>
+                
+                <!-- 기능 소개 -->
+                <div class="feature-showcase">
+                    <div class="feature-item">
+                        <div class="feature-icon">📞</div>
+                        <div class="feature-text">
+                            <h3>통화 분석</h3>
+                            <p>AI가 통화 내용을 자동으로 분석하여 핵심 정보를 추출합니다</p>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-item">
+                        <div class="feature-icon">📅</div>
+                        <div class="feature-text">
+                            <h3>일정 관리</h3>
+                            <p>추출된 일정을 캘린더에 자동으로 등록하고 관리합니다</p>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-item">
+                        <div class="feature-icon">📧</div>
+                        <div class="feature-text">
+                            <h3>팀 공유</h3>
+                            <p>분석된 내용을 팀원들과 이메일로 간편하게 공유합니다</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 통계 -->
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-number">90%</div>
+                        <div class="stat-label">시간 절약</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">100+</div>
+                        <div class="stat-label">활성 사용자</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">99%</div>
+                        <div class="stat-label">분석 정확도</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 오른쪽 로그인 폼 -->
+        <div class="login-form-container">
+            <div class="login-card">
+                <!-- 헤더 -->
+                <div class="login-header">
+                    <h2>작업데스크 로그인</h2>
+                    <p>개인 작업공간에 접속하여 통화 분석을 시작하세요</p>
+                </div>
+                
+                <!-- 로그인 폼 -->
+                <form class="login-form" id="loginForm">
+                    <div class="form-group">
+                        <label class="form-label" for="email">이메일 주소</label>
+                        <input 
+                            type="email" 
+                            class="form-input" 
+                            id="email" 
+                            name="email" 
+                            placeholder="example@company.com" 
+                            required
+                            autocomplete="email"
+                        >
+                        <div class="form-error" id="email-error"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="password">비밀번호</label>
+                        <div class="password-field">
+                            <input 
+                                type="password" 
+                                class="form-input" 
+                                id="password" 
+                                name="password" 
+                                placeholder="비밀번호를 입력하세요" 
+                                required
+                                autocomplete="current-password"
+                            >
+                            <button type="button" class="password-toggle" onclick="togglePassword()">
+                                <span class="toggle-text" id="toggle-text">보기</span>
+                            </button>
+                        </div>
+                        <div class="form-error" id="password-error"></div>
+                    </div>
+                    
+                    <div class="form-options">
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" id="remember" name="remember">
+                            <span class="checkmark"></span>
+                            <span class="checkbox-text">로그인 상태 유지</span>
+                        </label>
+                        <a href="#" class="forgot-link">비밀번호 찾기</a>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary login-btn">
+                        작업데스크 시작하기
+                    </button>
+                </form>
+                
+                <!-- 구분선 -->
+                <div class="divider">
+                    <span>또는</span>
+                </div>
+                
+                <!-- 소셜 로그인 -->
+                <div class="social-login">
+                    <button type="button" class="btn btn-outline social-btn">
+                        Google로 로그인
+                    </button>
+                    <button type="button" class="btn btn-outline social-btn">
+                        Microsoft로 로그인
+                    </button>
+                </div>
+                
+                <!-- 회원가입 링크 -->
+                <div class="signup-section">
+                    <p>아직 계정이 없으신가요? <a href="#" class="signup-link">회원가입</a></p>
+                </div>
+                
+                <!-- 데모 정보 -->
+                <div class="demo-info">
+                    <div class="demo-badge">데모 계정</div>
+                    <p>demo@mufi.ai / demo123</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 알림 컨테이너 -->
+    <div id="notification-container" class="notification-container"></div>
+    
+    <script src="js/login.js"></script>
+</body>
+</html> 
