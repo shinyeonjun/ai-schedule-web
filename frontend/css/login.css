@@ -645,4 +645,50 @@ body {
 *:focus-visible {
   outline: 2px solid var(--color-black);
   outline-offset: 2px;
+}
+
+/* Google 로그인 전용 스타일 */
+.google-login-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-2xl) 0;
+}
+
+.google-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  max-width: 320px;
+  padding: var(--spacing-lg);
+  font-size: 16px;
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.google-login-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+.google-login-btn:active {
+  transform: translateY(0);
+}
+
+.google-icon {
+  flex-shrink: 0;
+}
+
+.login-description {
+  text-align: center;
+  color: var(--color-gray-600);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
 } 

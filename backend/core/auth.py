@@ -15,12 +15,12 @@ class JWTHandler:
     def create_access_token(data: Dict[str, Any]) -> str:
         """Create JWT access token"""
         to_encode = data.copy()
-        expire = datetime.utcnow() + timedelta(hours=settings.jwt_expires_hours)
+        expire = datetime.utcnow() + timedelta(minutes=settings.jwt_access_token_expire_minutes)
         to_encode.update({"exp": expire})
         
         encoded_jwt = jwt.encode(
             to_encode, 
-            settings.jwt_secret, 
+            settings.jwt_secret_key, 
             algorithm=settings.jwt_algorithm
         )
         return encoded_jwt
@@ -31,7 +31,7 @@ class JWTHandler:
         try:
             payload = jwt.decode(
                 token, 
-                settings.jwt_secret, 
+                settings.jwt_secret_key, 
                 algorithms=[settings.jwt_algorithm]
             )
             return payload

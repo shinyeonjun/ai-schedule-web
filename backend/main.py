@@ -228,6 +228,14 @@ async def dashboard_page():
 
 # ==================== API 라우트 ====================
 
+# 라우터 추가
+from routers import analysis, schedules, members, email
+
+app.include_router(analysis.router, prefix="/api", tags=["analysis"])
+app.include_router(schedules.router, prefix="/api", tags=["schedules"])
+app.include_router(members.router, prefix="/api", tags=["members"])
+app.include_router(email.router, prefix="/api", tags=["email"])
+
 @app.get("/health")
 async def health_check():
     """건강 체크 엔드포인트"""
@@ -239,7 +247,7 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        app, 
+        "main:app", 
         host=settings.host, 
         port=settings.port, 
         reload=settings.debug

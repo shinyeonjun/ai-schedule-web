@@ -9,7 +9,13 @@ from dotenv import load_dotenv
 # 환경 변수 로드
 load_dotenv()
 
-# from models.analysis import AnalysisResult  # 나중에 필요시 추가
+from models.analysis import (
+    AnalysisResult, 
+    AnalysisResultData, 
+    ScheduleData, 
+    ParticipantData, 
+    ActionData
+)
 
 class DatabaseService:
     def __init__(self):

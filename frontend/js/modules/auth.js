@@ -17,6 +17,20 @@ class AuthManager {
      * 저장된 인증 정보 복원
      */
     loadStoredAuth() {
+        // 토큰 만료 시간 체크
+        const tokenExpiry = localStorage.getItem('mufi_token_expiry') || sessionStorage.getItem('mufi_token_expiry');
+        
+        if (tokenExpiry) {
+            const expiryTime = new Date(tokenExpiry);
+            const now = new Date();
+            
+            if (now > expiryTime) {
+                console.log('🕒 토큰이 만료되었습니다. 로그인이 필요합니다.');
+                this.clearAuth();
+                return;
+            }
+        }
+        
         // localStorage 또는 sessionStorage에서 토큰 복원
         this.token = localStorage.getItem('mufi_token') || sessionStorage.getItem('mufi_token');
         
@@ -32,61 +46,36 @@ class AuthManager {
     }
 
     /**
-     * 구글 로그인 시작
+     * 구글 로그인 시작 (리다이렉션 방식)
      */
     async startGoogleLogin() {
         try {
+            console.log('🔄 Google OAuth URL 요청 중...');
+            
             // 백엔드에서 구글 OAuth URL 가져오기
             const response = await fetch(`${this.baseURL}/auth/google/login`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const data = await response.json();
+            console.log('✅ Google OAuth URL 받음:', data);
             
             if (data.auth_url) {
-                // 팝업으로 구글 로그인 창 열기
-                const popup = window.open(
-                    data.auth_url,
-                    'googleLogin',
-                    'width=500,height=600,scrollbars=yes,resizable=yes'
-                );
-
-                // 팝업에서 인증 완료 대기
-                return new Promise((resolve, reject) => {
-                    const checkClosed = setInterval(() => {
-                        if (popup.closed) {
-                            clearInterval(checkClosed);
-                            // 팝업이 닫힌 후 인증 상태 확인
-                            this.handleAuthCallback()
-                                .then(resolve)
-                                .catch(reject);
-                        }
-                    }, 1000);
-
-                    // 메시지 리스너 추가 (팝업에서 메시지 받기)
-                    const messageListener = (event) => {
-                        if (event.origin !== window.location.origin) return;
-                        
-                        if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
-                            clearInterval(checkClosed);
-                            window.removeEventListener('message', messageListener);
-                            popup.close();
-                            
-                            this.handleAuthSuccess(event.data.authData)
-                                .then(resolve)
-                                .catch(reject);
-                        } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
-                            clearInterval(checkClosed);
-                            window.removeEventListener('message', messageListener);
-                            popup.close();
-                            reject(new Error(event.data.error));
-                        }
-                    };
-                    
-                    window.addEventListener('message', messageListener);
+                // 현재 페이지에서 Google OAuth로 리다이렉션
+                console.log('🔄 Google OAuth 페이지로 이동...');
+                window.location.href = data.auth_url;
+                
+                // 리다이렉션이므로 Promise 반환 (실제로는 페이지가 이동됨)
+                return new Promise((resolve) => {
+                    resolve({ success: true, redirecting: true });
                 });
             } else {
-                throw new Error('Failed to get Google OAuth URL');
+                throw new Error('Google OAuth URL을 받지 못했습니다.');
             }
         } catch (error) {
-            console.error('Google login error:', error);
+            console.error('❌ Google 로그인 오류:', error);
             throw error;
         }
     }
@@ -179,9 +168,11 @@ class AuthManager {
         // 모든 저장소에서 제거
         localStorage.removeItem('mufi_token');
         localStorage.removeItem('mufi_user_data');
+        localStorage.removeItem('mufi_token_expiry');
         localStorage.removeItem('mufi_logged_in');
         sessionStorage.removeItem('mufi_token');
         sessionStorage.removeItem('mufi_user_data');
+        sessionStorage.removeItem('mufi_token_expiry');
         sessionStorage.removeItem('mufi_logged_in');
     }
 
@@ -189,6 +180,23 @@ class AuthManager {
      * 현재 인증 상태 확인
      */
     async checkAuthStatus() {
+        // 토큰 만료 시간 재확인
+        const tokenExpiry = localStorage.getItem('mufi_token_expiry') || sessionStorage.getItem('mufi_token_expiry');
+        if (tokenExpiry) {
+            const expiryTime = new Date(tokenExpiry);
+            const now = new Date();
+            
+            if (now > expiryTime) {
+                console.log('🕒 토큰이 만료되어 로그아웃 처리합니다.');
+                this.clearAuth();
+                return { authenticated: false };
+            }
+            
+            // 만료까지 남은 시간 표시
+            const timeLeft = Math.round((expiryTime - now) / (1000 * 60 * 60)); // 시간 단위
+            console.log(`⏰ 로그인 유효 시간: ${timeLeft}시간 남음`);
+        }
+        
         if (!this.token) {
             return { authenticated: false };
         }
@@ -305,9 +313,6 @@ class AuthManager {
         return false;
     }
 }
-
-// 전역 AuthManager 인스턴스 생성
-window.authManager = new AuthManager();
 
 // 인증 상태 변경 이벤트 리스너
 window.addEventListener('authStateChange', (event) => {

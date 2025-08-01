@@ -3,621 +3,263 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MUFI - 통화 분석 및 일정 관리</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/dashboard.css">
-    <script type="module" src="js/modules/auth.js"></script>
+    <title>MUFI - 통화 분석 & 일정 관리</title>
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNCIgZmlsbD0iIzI1NjNlYiIvPgo8dGV4dCB4PSIxNiIgeT0iMjAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5NPC90ZXh0Pgo8L3N2Zz4K">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <div class="dashboard-container">
-        <!-- Header -->
-        <header class="header">
-            <h1>MUFI</h1>
-            <div class="header-actions">
-                <button class="btn btn-outline" onclick="window.location.href='/static/login.html'">로그아웃</button>
+        <!-- 사이드바 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>MUFI</h2>
             </div>
-        </header>
-
-        <!-- Navigation -->
-        <nav class="nav-tabs">
-            <button class="nav-tab active" data-tab="analysis">통화 분석</button>
-            <button class="nav-tab" data-tab="email">메일 보내기</button>
-            <button class="nav-tab" data-tab="share">일정 공유</button>
+            
+            <nav class="sidebar-nav">
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="#" class="nav-link active" data-section="analysis">
+                            통화 분석
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-section="schedules">
+                            일정 관리
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-section="members">
+                            인원 관리
+                        </a>
+                    </li>
+                </ul>
             </nav>
 
-        <!-- 통화 분석 탭 -->
-        <div class="tab-content active" id="analysis-tab">
-            <div class="content-grid">
-                <!-- 분석 입력 섹션 -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">통화 내용 분석</h3>
-                        <p class="card-subtitle">파일 업로드 또는 직접 입력으로 통화 내용을 분석하세요</p>
-                    </div>
-                    <div class="card-content">
-                        <!-- 입력 방법 선택 -->
-                        <div class="input-method-tabs">
-                            <button class="input-method-tab active" data-method="file">파일 업로드</button>
-                            <button class="input-method-tab" data-method="text">직접 입력</button>
-                        </div>
-                        
-                        <!-- 파일 업로드 섹션 -->
-                        <div class="input-section active" id="file-input-section">
-                            <div class="file-upload-area" id="file-upload-area">
-                                <div class="file-upload-content">
-                                    <div class="file-upload-icon">📄</div>
-                                    <div class="file-upload-text">
-                                        <p>파일을 여기에 드래그하거나 클릭하여 선택하세요</p>
-                                        <p class="file-upload-hint">지원 형식: TXT, DOCX, PDF (최대 10MB)</p>
-                                    </div>
-                                </div>
-                                <input type="file" id="file-input" accept=".txt,.docx,.pdf" hidden>
-                            </div>
-                            
-                            <div class="file-info" id="file-info" style="display: none;">
-                        <div class="file-details">
-                                    <div class="file-name" id="file-name"></div>
-                                    <div class="file-size" id="file-size"></div>
-                                </div>
-                                <button class="btn btn-outline btn-sm" id="clear-file-btn">파일 제거</button>
-                            </div>
-                        </div>
-                        
-                        <!-- 직접 입력 섹션 -->
-                        <div class="input-section" id="text-input-section">
-                            <div class="text-input-container">
-                                <textarea 
-                                    id="call-content" 
-                                    placeholder="통화 내용을 입력하세요... (Ctrl+V로 붙여넣기 또는 드래그 앤 드롭 지원)"
-                                    maxlength="10000"
-                                ></textarea>
-                                <div class="text-counter">
-                                    <span id="text-count">0</span>/10,000
-                                </div>
-                            </div>
-                            <div class="text-input-tips">
-                                <div class="tips-title">💡 입력 도움말</div>
-                                <ul class="tips-list">
-                                    <li><strong>키보드 단축키:</strong> Ctrl+V (또는 Cmd+V)로 텍스트 붙여넣기</li>
-                                    <li><strong>드래그 앤 드롭:</strong> 텍스트를 선택하여 입력 영역으로 드래그</li>
-                                    <li><strong>파일 읽기:</strong> TXT 파일 업로드 시 자동으로 내용 복사</li>
-                                    <li><strong>최대 길이:</strong> 10,000자까지 입력 가능</li>
-                                </ul>
-                            </div>
-                        </div>
-                        
-                        <!-- 분석 버튼 -->
-                        <div class="analysis-actions">
-                            <button class="btn btn-dark" id="analyze-btn" disabled>분석 시작</button>
-                            <button class="btn btn-dark" id="text-analyze-btn" style="display: none;" disabled>분석 시작</button>
-                            <button class="btn btn-outline" id="clear-all-btn">전체 초기화</button>
-                        </div>
+            <!-- 사용자 프로필 -->
+            <div class="user-profile" id="userProfile">
+                <div class="user-avatar">
+                    <img id="userAvatar" src="" alt="사용자 프로필" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="avatar-placeholder" style="display: none;">
+                        <span id="userInitials"></span>
                     </div>
                 </div>
-
-                <!-- 분석 결과 섹션 -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">분석 결과</h3>
-                        <p class="card-subtitle">통화 내용 분석 결과를 확인하세요</p>
-                            </div>
-                    <div class="card-content">
-                        <div class="analysis-results-content" id="analysis-results-content">
-                            <!-- 분석 전 상태 -->
-                            <div class="analysis-state" id="analysis-state-waiting">
-                                <div class="analysis-state-icon">📋</div>
-                                <div class="analysis-state-message">
-                                    <h4>분석 대기중</h4>
-                                    <p>파일을 업로드하거나 통화 내용을 입력한 후 분석을 시작하세요.</p>
-                                </div>
-                            </div>
-
-                            <!-- 분석 중 상태 -->
-                            <div class="analysis-state hidden" id="analysis-state-analyzing">
-                                <div class="analysis-state-icon">
-                                    <div class="loading-spinner"></div>
-                                </div>
-                                <div class="analysis-state-message">
-                                    <h4>분석 진행중</h4>
-                                    <p>AI가 통화 내용을 분석하고 있습니다. 잠시만 기다려주세요.</p>
-                                </div>
-                            </div>
-
-                            <!-- 분석 완료 상태 -->
-                            <div class="analysis-state hidden" id="analysis-state-complete">
-                                <!-- 통화 요약 섹션 -->
-                                <div class="analysis-section">
-                                    <div class="analysis-section-header">
-                                        <h4 class="analysis-section-title">📝 통화 요약</h4>
-                                    </div>
-                                    <div class="analysis-section-content">
-                                        <div class="summary-content" id="summary-content">
-                                            <!-- 요약 내용이 여기에 표시됩니다 -->
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- 일정 정보 섹션 -->
-                                <div class="analysis-section">
-                                    <div class="analysis-section-header">
-                                        <h4 class="analysis-section-title">📅 일정 정보</h4>
-                                    </div>
-                                    <div class="analysis-section-content">
-                                        <div class="schedule-info" id="schedule-info">
-                                            <!-- 일정 정보가 여기에 표시됩니다 -->
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- 상세 설명 섹션 -->
-                                <div class="analysis-section">
-                                    <div class="analysis-section-header">
-                                        <h4 class="analysis-section-title">📄 상세 설명</h4>
-                                    </div>
-                                    <div class="analysis-section-content">
-                                        <div class="description-content" id="description-content">
-                                            <!-- 상세 설명이 여기에 표시됩니다 -->
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- 참석자 정보 섹션 -->
-                                <div class="analysis-section">
-                                    <div class="analysis-section-header">
-                                        <h4 class="analysis-section-title">👥 참석자 정보</h4>
-                                        <div class="participants-counter">
-                                            <span id="participants-count">0</span>명
-                                        </div>
-                                    </div>
-                                    <div class="analysis-section-content">
-                                        <div class="participants-list" id="participants-list">
-                                            <!-- 참석자 정보가 여기에 표시됩니다 -->
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- 액션 아이템 섹션 -->
-                                <div class="analysis-section">
-                                    <div class="analysis-section-header">
-                                        <h4 class="analysis-section-title">✅ 액션 아이템</h4>
-                                        <div class="actions-counter">
-                                            <span id="actions-count">0</span>개
-                                        </div>
-                                    </div>
-                                    <div class="analysis-section-content">
-                                        <div class="actions-list" id="actions-list">
-                                            <!-- 액션 아이템이 여기에 표시됩니다 -->
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 분석 오류 상태 -->
-                            <div class="analysis-state hidden" id="analysis-state-error">
-                                <div class="analysis-state-icon">❌</div>
-                                <div class="analysis-state-message">
-                                    <h4>분석 오류</h4>
-                                    <p>분석 중 오류가 발생했습니다. 다시 시도해주세요.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="user-info">
+                    <div class="user-name" id="userName">로딩 중...</div>
+                    <div class="user-email" id="userEmail">로딩 중...</div>
+                </div>
+                <div class="user-actions">
+                    <button class="btn-icon" onclick="dashboard.logout()" title="로그아웃">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
-            <!-- 기존 분석 결과 컨테이너 제거됨 -->
-                    </div>
+        </aside>
 
-        <!-- 메일 보내기 탭 -->
-        <div class="tab-content" id="email-tab">
-            <div class="content-grid">
+        <!-- 메인 콘텐츠 -->
+        <main class="main-content">
+            <!-- 통화 분석 섹션 -->
+            <section id="analysis-section" class="content-section active">
+                <div class="section-header">
+                    <h1 class="section-title">통화 분석</h1>
+                    <p class="section-description">통화 내용을 업로드하거나 직접 입력하면 AI가 자동으로 분석하여 일정을 추출합니다.</p>
+                </div>
+
                 <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">이메일 발송</h3>
-                        <p class="card-subtitle">분석된 일정을 여러 명에게 동시에 발송하세요</p>
+                    <!-- 탭 네비게이션 -->
+                    <div class="analysis-tabs">
+                        <button class="tab-button active" data-tab="file-upload">
+                            <i class="fas fa-file-upload"></i> 파일 업로드
+                        </button>
+                        <button class="tab-button" data-tab="text-input">
+                            <i class="fas fa-keyboard"></i> 직접 입력
+                        </button>
                     </div>
-                    <div class="card-content">
-                        <form id="email-form">
-                            <div class="form-group">
-                                <label class="form-label">받는 사람</label>
-                                <div class="recipients-container">
-                                    <div class="recipients-list" id="recipients-list">
-                                        <!-- 선택된 수신자들이 여기에 표시됩니다 -->
-                                    </div>
-                                    <button type="button" class="btn btn-outline add-recipient-btn" onclick="openContactModal()">
-                                        + 받는 사람 추가
-                                    </button>
-                                </div>
-                        </div>
 
-                            <div class="form-group">
-                                <label class="form-label" for="email-subject">제목</label>
-                                <input type="text" class="form-input" id="email-subject" placeholder="이메일 제목을 입력하세요" required>
-                            </div>
+                    <!-- 파일 업로드 탭 -->
+                    <div id="file-upload" class="tab-content active">
+                        <div class="upload-area" id="uploadArea">
+                            <p class="upload-text">통화 내용 파일을 여기에 드래그하거나 클릭하여 선택하세요</p>
+                            <p class="upload-subtext">지원 형식: .txt 파일 (최대 10MB)</p>
                             
-                            <div class="form-group">
-                                <label class="form-label" for="email-content">내용</label>
-                                <textarea class="form-textarea" id="email-content" placeholder="이메일 내용을 입력하세요" required></textarea>
-                </div>
-
-                            <div class="form-group">
-                                <label class="form-label">첨부 파일</label>
-                                <div class="attachment-section">
-                                    <button type="button" class="btn btn-outline attachment-btn" onclick="openICSModal()">
-                                        📅 ICS 파일 선택
-                                    </button>
-                                    <div class="selected-ics" id="selected-ics" style="display: none;">
-                                        <span class="ics-info" id="ics-info"></span>
-                                        <button type="button" class="btn btn-outline btn-sm" onclick="removeSelectedICS()">제거</button>
-                                </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="card-footer">
-                        <button class="btn btn-primary" onclick="sendBulkEmail()">일괄 발송</button>
-                        <button class="btn btn-secondary" onclick="previewEmail()">미리보기</button>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">연락처 관리</h3>
-                        <p class="card-subtitle">자주 사용하는 연락처를 저장하고 관리하세요</p>
-                    </div>
-                    <div class="card-content">
-                        <div class="contact-actions">
-                            <button class="btn btn-primary btn-sm" onclick="openAddContactModal()">+ 연락처 추가</button>
+                            <input type="file" id="fileInput" accept=".txt" style="display: none;">
                         </div>
-                        <div class="contacts-list" id="contacts-list">
-                            <!-- 저장된 연락처들이 여기에 표시됩니다 -->
+                        
+                        <div class="upload-actions">
+                            <button type="button" class="btn btn-primary" id="uploadBtn" disabled>
+                                <i class="fas fa-search"></i> 분석 시작
+                            </button>
                         </div>
-                    </div>
-                </div>
-                            </div>
-            </div>
-                    </div>
-
-        <!-- 일정 공유 탭 -->
-        <div class="tab-content" id="share-tab">
-            <div class="content-grid">
-                <div class="card">
-                        <div class="card-header">
-                        <h3 class="card-title">일정 공유하기</h3>
-                        <p class="card-subtitle">분석된 일정을 다른 사용자들과 공유하세요</p>
-                        </div>
-                        <div class="card-content">
-                                <div class="form-group">
-                            <label class="form-label">공유할 일정 선택</label>
-                            <div class="selected-schedules-container">
-                                <div class="selected-schedules-list" id="selected-schedules-list">
-                                    <!-- 선택된 일정들이 여기에 표시됩니다 -->
+                        
+                        <div class="file-info" id="fileInfo">
+                            <div class="file-details">
+                                <i class="fas fa-file-text file-icon"></i>
+                                <div class="file-content">
+                                    <div class="file-name" id="fileName">test.txt</div>
+                                    <div class="file-size" id="fileSize">4.22 KB</div>
                                 </div>
-                                <button type="button" class="btn btn-outline add-schedule-btn" onclick="openScheduleSelectModal()">
-                                    + 일정 선택
+                                <button type="button" class="remove-file" id="removeFileBtn" title="파일 제거">
+                                    <i class="fas fa-times"></i>
                                 </button>
                             </div>
                         </div>
-                        
-                                <div class="form-group">
-                            <label class="form-label">공유 대상</label>
-                            <div class="recipients-container">
-                                <div class="recipients-list" id="share-recipients-list">
-                                    <!-- 선택된 공유 대상들이 여기에 표시됩니다 -->
-                                </div>
-                                <button type="button" class="btn btn-outline add-recipient-btn" onclick="openShareContactModal()">
-                                    + 공유 대상 추가
-                                    </button>
-                                    </div>
-                                </div>
-                        
+                    </div>
+
+                    <!-- 직접 입력 탭 -->
+                    <div id="text-input" class="tab-content">
                         <div class="form-group">
-                            <label class="form-label" for="share-message">공유 메시지</label>
-                            <textarea class="form-textarea" id="share-message" placeholder="공유와 함께 전달할 메시지를 입력하세요 (선택사항)" rows="3"></textarea>
+                            <label for="textContent" class="form-label">통화 내용</label>
+                            <textarea 
+                                id="textContent" 
+                                class="form-control" 
+                                placeholder="통화 내용을 여기에 입력하세요...
+
+예시:
+- 내일 오후 2시에 마케팅 회의
+- 김대리와 프로젝트 진행 상황 논의
+- 다음 주 화요일 고객 미팅 일정 확정
+
+더 자세한 내용을 입력할수록 정확한 일정 분석이 가능합니다."
+                                rows="8"></textarea>
+                            
+                            <div class="text-controls">
+                                <button type="button" class="btn btn-primary" id="analyzeTextBtn" disabled>
+                                    <i class="fas fa-search"></i> 분석 시작
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div class="card-footer">
-                        <button class="btn btn-primary" onclick="shareSchedule()">일정 공유</button>
-                        <button class="btn btn-outline" onclick="clearShareForm()">초기화</button>
-                        </div>
+                </div>
+
+                <!-- 분석 결과 -->
+                <div class="results-section">
+                    <div id="analysisResults" class="analysis-results">
+                        <h2 class="card-title">분석 결과</h2>
+                        <div id="analysisContent"></div>
                     </div>
+                </div>
+            </section>
+
+            <!-- 일정 관리 섹션 -->
+            <section id="schedules-section" class="content-section">
+                <div class="section-header">
+                    <h1 class="section-title">일정 관리</h1>
+                    <p class="section-description">분석된 일정들을 확인하고 캘린더 파일로 다운로드할 수 있습니다.</p>
+                </div>
 
                 <div class="card">
-                        <div class="card-header">
-                        <h3 class="card-title">공유받은 일정</h3>
-                        <p class="card-subtitle">다른 사용자가 공유한 일정을 확인하고 캘린더에 추가하세요</p>
-                                </div>
-                    <div class="card-content">
-                        <div class="received-schedules-filter">
-                            <div class="filter-buttons">
-                                <button class="filter-btn active" data-filter="all" onclick="filterReceivedSchedules('all')">전체</button>
-                                <button class="filter-btn" data-filter="pending" onclick="filterReceivedSchedules('pending')">대기중</button>
-                                <button class="filter-btn" data-filter="added" onclick="filterReceivedSchedules('added')">추가됨</button>
-                                <button class="filter-btn" data-filter="declined" onclick="filterReceivedSchedules('declined')">거절됨</button>
-                            </div>
-                        </div>
-                        <ul class="list" id="received-schedules-list">
-                            <li class="list-item">
-                                <div class="list-item-content">
-                                    <div class="list-item-title">프로젝트 킥오프 미팅</div>
-                                    <div class="list-item-subtitle">김대리님이 공유 • 2024-01-18 15:00</div>
-                                    <div class="list-item-meta">
-                                        <span class="status-badge status-pending">대기중</span>
-                                    </div>
-                                </div>
-                                <div class="list-item-actions">
-                                    <button class="btn btn-secondary btn-sm" onclick="viewSharedSchedule(1)">상세보기</button>
-                                    <button class="btn btn-primary btn-sm" onclick="acceptSharedSchedule(1)">수락</button>
-                                    <button class="btn btn-outline btn-sm" onclick="declineSharedSchedule(1)">거절</button>
-                                </div>
-                            </li>
-                            <li class="list-item">
-                                <div class="list-item-content">
-                                    <div class="list-item-title">월간 보고서 검토</div>
-                                    <div class="list-item-subtitle">이과장님이 공유 • 2024-01-19 11:00</div>
-                                    <div class="list-item-meta">
-                                        <span class="status-badge status-added">추가됨</span>
-                                    </div>
-                                </div>
-                                <div class="list-item-actions">
-                                    <button class="btn btn-secondary btn-sm" onclick="viewSharedSchedule(2)">상세보기</button>
-                                </div>
-                            </li>
-                            <li class="list-item">
-                                <div class="list-item-content">
-                                    <div class="list-item-title">고객사 방문</div>
-                                    <div class="list-item-subtitle">박팀장님이 공유 • 2024-01-20 14:30</div>
-                                    <div class="list-item-meta">
-                                        <span class="status-badge status-declined">거절됨</span>
-                                    </div>
-                                </div>
-                                <div class="list-item-actions">
-                                    <button class="btn btn-secondary btn-sm" onclick="viewSharedSchedule(3)">상세보기</button>
-                                </div>
-                            </li>
-                        </ul>
+                    <h2 class="card-title">저장된 일정</h2>
+                    <div class="text-center">
+                        <h3>저장된 일정이 없습니다</h3>
+                        <p>통화 분석을 통해 일정을 생성해보세요.</p>
+                    </div>
                 </div>
-            </div>
+            </section>
+
+            <!-- 인원 관리 섹션 -->
+            <section id="members-section" class="content-section">
+                <div class="section-header">
+                    <h1 class="section-title">인원 관리</h1>
+                    <p class="section-description">프로젝트 참여자들을 관리하고 역할을 할당할 수 있습니다.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">팀 멤버</h2>
+                        <button class="btn btn-primary" id="addMemberBtn">
+                            <i class="fas fa-plus"></i> 멤버 추가
+                        </button>
+                    </div>
+                    
+                    <div class="members-container" id="membersContainer">
+                        <div class="placeholder-content">
+                            <div class="placeholder-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <h3>등록된 멤버가 없습니다</h3>
+                            <p>새 멤버를 추가하여 팀을 구성해보세요.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2 class="card-title">역할 관리</h2>
+                    <div class="roles-grid" id="rolesGrid">
+                        <div class="role-card">
+                            <div class="role-info">
+                                <h4>프로젝트 매니저</h4>
+                                <p>프로젝트 전체 관리 및 일정 조율</p>
+                            </div>
+                            <div class="role-count">0명</div>
+                        </div>
+                        <div class="role-card">
+                            <div class="role-info">
+                                <h4>개발자</h4>
+                                <p>시스템 개발 및 구현</p>
+                            </div>
+                            <div class="role-count">0명</div>
+                        </div>
+                        <div class="role-card">
+                            <div class="role-info">
+                                <h4>디자이너</h4>
+                                <p>UI/UX 디자인 및 브랜딩</p>
+                            </div>
+                            <div class="role-count">0명</div>
+                        </div>
+                        <div class="role-card">
+                            <div class="role-info">
+                                <h4>분석가</h4>
+                                <p>데이터 분석 및 인사이트 도출</p>
+                            </div>
+                            <div class="role-count">0명</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 로딩 오버레이 -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">AI가 통화 내용을 분석 중입니다...</div>
         </div>
     </div>
 
-    <!-- 일정 추가 모달 -->
-    <div class="modal" id="schedule-modal">
+    <!-- 모달 -->
+    <div id="modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">일정 추가</h3>
-                <button class="modal-close" onclick="closeModal('schedule-modal')">×</button>
+                <h3 class="modal-title" id="modalTitle">제목</h3>
+                <button class="modal-close" id="modalClose">
+                    ×
+                </button>
             </div>
-            <div class="modal-body">
-                <form id="schedule-form">
-                    <div class="form-group">
-                        <label class="form-label" for="schedule-title">제목</label>
-                        <input type="text" class="form-input" id="schedule-title" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label" for="schedule-date">날짜</label>
-                        <input type="date" class="form-input" id="schedule-date" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label" for="schedule-time">시간</label>
-                        <input type="time" class="form-input" id="schedule-time" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label" for="schedule-description">설명</label>
-                        <textarea class="form-textarea" id="schedule-description"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('schedule-modal')">취소</button>
-                <button class="btn btn-primary" onclick="saveSchedule()">저장</button>
+            <div class="modal-body" id="modalBody">
+                내용
             </div>
         </div>
     </div>
-
-    <!-- 연락처 추가 모달 -->
-    <div class="modal" id="add-contact-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">연락처 추가</h3>
-                <button class="modal-close" onclick="closeModal('add-contact-modal')">×</button>
-            </div>
-            <div class="modal-body">
-                <form id="contact-form">
-                    <div class="form-group">
-                        <label class="form-label" for="contact-name">이름</label>
-                        <input type="text" class="form-input" id="contact-name" placeholder="이름을 입력하세요" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label" for="contact-email">이메일</label>
-                        <input type="email" class="form-input" id="contact-email" placeholder="이메일 주소를 입력하세요" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label" for="contact-company">회사/부서</label>
-                        <input type="text" class="form-input" id="contact-company" placeholder="회사 또는 부서명 (선택사항)">
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('add-contact-modal')">취소</button>
-                <button class="btn btn-primary" onclick="saveContact()">저장</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 연락처 선택 모달 -->
-    <div class="modal" id="contact-select-modal">
-        <div class="modal-content modal-large">
-            <div class="modal-header">
-                <h3 class="modal-title">받는 사람 선택</h3>
-                <button class="modal-close" onclick="closeModal('contact-select-modal')">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="contact-select-section">
-                    <div class="contact-search">
-                        <input type="text" class="form-input" id="contact-search" placeholder="이름 또는 이메일로 검색...">
-                    </div>
-                    <div class="contact-select-list" id="contact-select-list">
-                        <!-- 연락처 목록이 여기에 표시됩니다 -->
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('contact-select-modal')">취소</button>
-                <button class="btn btn-primary" onclick="addSelectedContacts()">선택한 연락처 추가</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ICS 파일 선택 모달 -->
-    <div class="modal" id="ics-select-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">ICS 파일 선택</h3>
-                <button class="modal-close" onclick="closeModal('ics-select-modal')">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="ics-select-section">
-                    <div class="ics-list" id="ics-list">
-                        <!-- 분석된 ICS 데이터 목록이 여기에 표시됩니다 -->
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('ics-select-modal')">취소</button>
-                <button class="btn btn-primary" onclick="selectICSFile()">선택</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 일정 선택 모달 -->
-    <div class="modal" id="schedule-select-modal">
-        <div class="modal-content modal-large">
-            <div class="modal-header">
-                <h3 class="modal-title">공유할 일정 선택</h3>
-                <button class="modal-close" onclick="closeModal('schedule-select-modal')">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="schedule-select-section">
-                    <div class="schedule-search">
-                        <input type="text" class="form-input" id="schedule-search" placeholder="일정 제목으로 검색..." oninput="searchSchedules()">
-                    </div>
-                    <div class="schedule-select-list" id="schedule-select-list">
-                        <div class="schedule-select-item">
-                            <div class="schedule-select-content">
-                                <div class="schedule-select-title">프로젝트 회의</div>
-                                <div class="schedule-select-subtitle">2024-01-15 14:00 - 회의실 A</div>
-                                <div class="schedule-select-description">프로젝트 진행 상황 점검 및 향후 계획 논의</div>
-                            </div>
-                            <div class="schedule-select-actions">
-                                <input type="checkbox" class="schedule-select-checkbox" value="1" data-title="프로젝트 회의" data-datetime="2024-01-15 14:00" data-location="회의실 A">
-                            </div>
-                        </div>
-                        <div class="schedule-select-item">
-                            <div class="schedule-select-content">
-                                <div class="schedule-select-title">클라이언트 미팅</div>
-                                <div class="schedule-select-subtitle">2024-01-16 10:00 - 온라인</div>
-                                <div class="schedule-select-description">신규 프로젝트 제안서 발표 및 Q&A</div>
-                            </div>
-                            <div class="schedule-select-actions">
-                                <input type="checkbox" class="schedule-select-checkbox" value="2" data-title="클라이언트 미팅" data-datetime="2024-01-16 10:00" data-location="온라인">
-                            </div>
-                        </div>
-                        <div class="schedule-select-item">
-                            <div class="schedule-select-content">
-                                <div class="schedule-select-title">팀 워크샵</div>
-                                <div class="schedule-select-subtitle">2024-01-17 09:00 - 대회의실</div>
-                                <div class="schedule-select-description">팀 빌딩 및 업무 프로세스 개선 워크샵</div>
-                            </div>
-                            <div class="schedule-select-actions">
-                                <input type="checkbox" class="schedule-select-checkbox" value="3" data-title="팀 워크샵" data-datetime="2024-01-17 09:00" data-location="대회의실">
-                            </div>
-                        </div>
-                        <div class="schedule-select-item">
-                            <div class="schedule-select-content">
-                                <div class="schedule-select-title">월간 보고서 검토</div>
-                                <div class="schedule-select-subtitle">2024-01-19 11:00 - 소회의실</div>
-                                <div class="schedule-select-description">1월 월간 성과 보고서 검토 및 피드백</div>
-                            </div>
-                            <div class="schedule-select-actions">
-                                <input type="checkbox" class="schedule-select-checkbox" value="4" data-title="월간 보고서 검토" data-datetime="2024-01-19 11:00" data-location="소회의실">
-                            </div>
-                        </div>
-                        <div class="schedule-select-item">
-                            <div class="schedule-select-content">
-                                <div class="schedule-select-title">고객사 방문</div>
-                                <div class="schedule-select-subtitle">2024-01-20 14:30 - 고객사 본사</div>
-                                <div class="schedule-select-description">분기별 정기 미팅 및 계약 갱신 논의</div>
-                            </div>
-                            <div class="schedule-select-actions">
-                                <input type="checkbox" class="schedule-select-checkbox" value="5" data-title="고객사 방문" data-datetime="2024-01-20 14:30" data-location="고객사 본사">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('schedule-select-modal')">취소</button>
-                <button class="btn btn-primary" onclick="addSelectedSchedules()">선택한 일정 추가</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 공유 대상 선택 모달 -->
-    <div class="modal" id="share-contact-modal">
-        <div class="modal-content modal-large">
-            <div class="modal-header">
-                <h3 class="modal-title">공유 대상 선택</h3>
-                <button class="modal-close" onclick="closeModal('share-contact-modal')">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="share-contact-section">
-                    <div class="contact-search">
-                        <input type="text" class="form-input" id="share-contact-search" placeholder="사용자 이름 또는 이메일로 검색...">
-                    </div>
-                    <div class="share-contact-list" id="share-contact-list">
-                        <!-- 공유 가능한 사용자 목록이 여기에 표시됩니다 -->
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('share-contact-modal')">취소</button>
-                <button class="btn btn-primary" onclick="addSelectedShareContacts()">선택한 사용자 추가</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 공유받은 일정 상세 모달 -->
-    <div class="modal" id="received-schedule-modal">
-        <div class="modal-content modal-large">
-            <div class="modal-header">
-                <h3 class="modal-title">공유받은 일정 상세</h3>
-                <button class="modal-close" onclick="closeModal('received-schedule-modal')">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="received-schedule-details" id="received-schedule-details">
-                    <!-- 공유받은 일정 상세 정보가 여기에 표시됩니다 -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="declineReceivedSchedule()">거절</button>
-                <button class="btn btn-primary" onclick="addReceivedScheduleToCalendar()">캘린더에 추가</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 알림 -->
-    <div class="notification" id="notification">
-        <div class="notification-title" id="notification-title">알림</div>
-        <div class="notification-message" id="notification-message">메시지</div>
-    </div>
-
-    <script src="/static/js/dashboard.js"></script>
+    
+    <!-- 페이지 로드 즉시 초기화 -->
+    <script type="module">
+        import MUFIDashboard from './js/dashboard.js';
+        
+        console.log('페이지 로드 완료 - 대시보드 시작');
+        
+        // DOM이 완전히 로드되면 대시보드 인스턴스 생성
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('DOM 로드 완료 - 대시보드 생성');
+                window.dashboard = new MUFIDashboard();
+            });
+        } else {
+            console.log('DOM 이미 로드됨 - 즉시 대시보드 생성');
+            window.dashboard = new MUFIDashboard();
+        }
+    </script>
 </body>
 </html> 

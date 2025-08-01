@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list = ["http://localhost:8000", "http://127.0.0.1:8000"]
     
+    # File Upload
+    upload_dir: str = "uploads"
+    max_file_size: int = 10 * 1024 * 1024  # 10MB
+    allowed_file_types: list = [".txt", ".docx", ".pdf"]
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

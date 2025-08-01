@@ -11,7 +11,7 @@ from config import settings
 
 class FileService:
     def __init__(self):
-        self.upload_dir = Path(settings.UPLOAD_DIR)
+        self.upload_dir = Path(settings.upload_dir)
         self.upload_dir.mkdir(exist_ok=True)
     
     async def save_uploaded_file(self, file: UploadFile) -> Dict[str, Any]:
@@ -58,17 +58,17 @@ class FileService:
         
         # 파일 확장자 검증
         file_extension = Path(file.filename).suffix.lower()
-        if file_extension not in settings.ALLOWED_FILE_TYPES:
+        if file_extension not in settings.allowed_file_types:
             raise HTTPException(
                 status_code=400, 
-                detail=f"지원하지 않는 파일 형식입니다. 허용된 형식: {', '.join(settings.ALLOWED_FILE_TYPES)}"
+                detail=f"지원하지 않는 파일 형식입니다. 허용된 형식: {', '.join(settings.allowed_file_types)}"
             )
         
         # 파일 크기 검증 (실제 크기는 읽어야 알 수 있지만, 여기서는 헤더 정보 사용)
-        if hasattr(file, 'size') and file.size and file.size > settings.MAX_FILE_SIZE:
+        if hasattr(file, 'size') and file.size and file.size > settings.max_file_size:
             raise HTTPException(
                 status_code=400, 
-                detail=f"파일 크기가 너무 큽니다. 최대 크기: {settings.MAX_FILE_SIZE // (1024*1024)}MB"
+                detail=f"파일 크기가 너무 큽니다. 최대 크기: {settings.max_file_size // (1024*1024)}MB"
             )
     
     async def extract_text_from_file(self, file_path: str) -> str:

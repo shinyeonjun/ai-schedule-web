@@ -1,36 +1,17 @@
-// MUFI Login - Dashboard Design System
-// 대시보드와 일관성 있는 로그인 기능
+// MUFI Login - Google OAuth Only
+// 구글 로그인 전용 간단 로그인 시스템
+
+import AuthManager from './modules/auth.js';
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔐 로그인 페이지 로드 완료');
+    
+    // AuthManager 인스턴스 생성
+    const authManager = new AuthManager();
+    
     // DOM 요소들
-    const loginForm = document.getElementById('loginForm');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const rememberCheckbox = document.getElementById('remember');
-    const loginBtn = document.querySelector('.login-btn');
     const googleLoginBtn = document.getElementById('google-login-btn');
     const notificationContainer = document.getElementById('notification-container');
-    
-    // 폼 검증 규칙
-    const validation = {
-        email: {
-            required: true,
-            pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-            message: '올바른 이메일 주소를 입력해주세요.'
-        },
-        password: {
-            required: true,
-            minLength: 6,
-            message: '비밀번호는 최소 6자 이상이어야 합니다.'
-        }
-    };
-    
-    // 데모 계정 정보
-    const demoAccounts = [
-        { email: 'demo@mufi.ai', password: 'demo123', name: '데모 사용자' },
-        { email: 'admin@mufi.ai', password: 'admin123', name: '관리자' },
-        { email: 'test@mufi.ai', password: 'test123', name: '테스트 사용자' }
-    ];
     
     // 초기화
     init();
@@ -39,406 +20,175 @@ document.addEventListener('DOMContentLoaded', function() {
         // 이벤트 리스너 등록
         attachEventListeners();
         
-        // 저장된 로그인 정보 복원
-        restoreLoginInfo();
-        
-        // 폼 검증 초기화
-        initFormValidation();
-        
         // 환영 메시지 표시
         showWelcomeMessage();
     }
     
     function attachEventListeners() {
-        // 로그인 폼 제출
-        loginForm.addEventListener('submit', handleLogin);
-        
-        // 실시간 폼 검증
-        emailInput.addEventListener('input', () => validateField('email'));
-        emailInput.addEventListener('blur', () => validateField('email'));
-        
-        passwordInput.addEventListener('input', () => validateField('password'));
-        passwordInput.addEventListener('blur', () => validateField('password'));
-
         // Google 로그인 버튼
         if (googleLoginBtn) {
             googleLoginBtn.addEventListener('click', handleGoogleLogin);
         }
-        
-        // 비밀번호 찾기 링크
-        const forgotLink = document.querySelector('.forgot-link');
-        if (forgotLink) {
-            forgotLink.addEventListener('click', handleForgotPassword);
-        }
-        
-        // 회원가입 링크
-        const signupLink = document.querySelector('.signup-link');
-        if (signupLink) {
-            signupLink.addEventListener('click', handleSignup);
-        }
-        
-        // 키보드 단축키
-        document.addEventListener('keydown', handleKeyboardShortcuts);
     }
     
-    function handleLogin(e) {
-        e.preventDefault();
-        
-        const email = emailInput.value.trim();
-        const password = passwordInput.value;
-        const remember = rememberCheckbox.checked;
-        
-        // 폼 검증
-        if (!validateForm()) {
-            return;
-        }
-        
-        // 로딩 상태 시작
-        setLoadingState(true);
-        
-        // 로그인 시도
-        attemptLogin(email, password, remember);
-    }
-    
-    function attemptLogin(email, password, remember) {
-        // 데모 계정 확인
-        const demoAccount = demoAccounts.find(acc => 
-            acc.email === email && acc.password === password
-        );
-        
-        if (demoAccount) {
-            // 데모 계정 로그인 성공
-            handleLoginSuccess(demoAccount, remember);
-                } else {
-            // 실제 로그인 API 호출 (시뮬레이션)
-            simulateApiLogin(email, password, remember);
-        }
-    }
-    
-    function simulateApiLogin(email, password, remember) {
-        // API 호출 시뮬레이션
-        setTimeout(() => {
-            // 간단한 검증 (실제로는 서버에서 처리)
-            if (email.includes('@') && password.length >= 6) {
-                const user = {
-                    email: email,
-                    name: email.split('@')[0],
-                    loginTime: new Date().toISOString()
-                };
-                handleLoginSuccess(user, remember);
-            } else {
-                handleLoginError('이메일 또는 비밀번호가 올바르지 않습니다.');
-            }
-        }, 1500); // 1.5초 지연으로 로딩 시뮬레이션
-    }
-    
-    function handleLoginSuccess(user, remember) {
-        // 로딩 상태 종료
-        setLoadingState(false);
-        
-        // 사용자 정보 저장
-        saveUserInfo(user, remember);
-        
-        // 성공 메시지 표시
-        showNotification('로그인 성공!', `${user.name}님, 환영합니다!`, 'success');
-        
-        // 대시보드로 리디렉션
-        setTimeout(() => {
-            window.location.href = 'dashboard.html';
-        }, 1000);
-    }
-    
-    function handleLoginError(message) {
-        // 로딩 상태 종료
-        setLoadingState(false);
-        
-        // 에러 메시지 표시
-        showNotification('로그인 실패', message, 'error');
-        
-        // 비밀번호 필드 포커스
-        passwordInput.focus();
-        passwordInput.select();
-    }
-    
-    function validateForm() {
-        let isValid = true;
-        
-        // 이메일 검증
-        if (!validateField('email')) {
-            isValid = false;
-        }
-        
-        // 비밀번호 검증
-        if (!validateField('password')) {
-            isValid = false;
-        }
-        
-        return isValid;
-    }
-    
-    function validateField(fieldName) {
-        const field = document.getElementById(fieldName);
-        const rule = validation[fieldName];
-        const errorElement = document.getElementById(`${fieldName}-error`);
-        
-        let isValid = true;
-        let errorMessage = '';
-        
-        // 필수 입력 검증
-        if (rule.required && !field.value.trim()) {
-            isValid = false;
-            errorMessage = `${fieldName === 'email' ? '이메일' : '비밀번호'}를 입력해주세요.`;
-        }
-        
-        // 패턴 검증 (이메일)
-        if (fieldName === 'email' && field.value.trim() && !rule.pattern.test(field.value.trim())) {
-            isValid = false;
-            errorMessage = rule.message;
-        }
-        
-        // 최소 길이 검증 (비밀번호)
-        if (fieldName === 'password' && field.value && field.value.length < rule.minLength) {
-            isValid = false;
-            errorMessage = rule.message;
-        }
-        
-        // 에러 표시/숨김
-        if (errorElement) {
-            if (isValid) {
-                hideError(errorElement);
-            } else {
-                showError(errorElement, errorMessage);
-            }
-        }
-        
-        // 필드 스타일 업데이트
-        updateFieldStyle(field, isValid);
-        
-        return isValid;
-    }
-    
-    function showError(errorElement, message) {
-        errorElement.textContent = message;
-        errorElement.classList.add('show');
-    }
-    
-    function hideError(errorElement) {
-        errorElement.classList.remove('show');
-    }
-    
-    function updateFieldStyle(field, isValid) {
-        if (isValid) {
-            field.style.borderColor = 'var(--color-gray-300)';
-        } else {
-            field.style.borderColor = '#dc2626';
-        }
-    }
-    
-    function setLoadingState(isLoading) {
-        if (isLoading) {
-            loginBtn.disabled = true;
-            loginBtn.textContent = '로그인 중...';
-            loginBtn.style.opacity = '0.7';
-        } else {
-            loginBtn.disabled = false;
-            loginBtn.textContent = '작업데스크 시작하기';
-            loginBtn.style.opacity = '1';
-        }
-    }
-    
-    function saveUserInfo(user, remember) {
-        const storage = remember ? localStorage : sessionStorage;
-        
-        // 사용자 정보 저장
-        storage.setItem('mufi_user', JSON.stringify(user));
-        
-        // 로그인 상태 저장
-        storage.setItem('mufi_logged_in', 'true');
-        
-        // 이메일 저장 (기억하기 체크된 경우)
-        if (remember) {
-            localStorage.setItem('mufi_remember_email', user.email);
-        }
-    }
-    
-    function restoreLoginInfo() {
-        // 저장된 이메일 복원
-        const savedEmail = localStorage.getItem('mufi_remember_email');
-        if (savedEmail) {
-            emailInput.value = savedEmail;
-            rememberCheckbox.checked = true;
-        }
-        
-        // 이미 로그인된 상태인지 확인
-        const isLoggedIn = localStorage.getItem('mufi_logged_in') || 
-                          sessionStorage.getItem('mufi_logged_in');
-        
-        if (isLoggedIn) {
-            // 자동 리디렉션 (선택사항)
-            // window.location.href = 'dashboard.html';
-        }
-    }
-    
-    function initFormValidation() {
-        // 초기 상태에서 에러 메시지 숨김
-        const errorElements = document.querySelectorAll('.form-error');
-        errorElements.forEach(element => {
-            element.classList.remove('show');
-        });
-    }
-    
+    // Google 로그인 처리
     async function handleGoogleLogin(e) {
         e.preventDefault();
+        console.log('🔄 Google 로그인 시작');
         
         try {
-            // 버튼 비활성화
+            // 버튼 비활성화 및 로딩 상태
             googleLoginBtn.disabled = true;
-            googleLoginBtn.textContent = 'Google 로그인 중...';
+            googleLoginBtn.innerHTML = `
+                <div style="width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #333; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                Google로 이동 중...
+            `;
             
-            // Google 로그인 시작
-            const authResult = await window.authManager.startGoogleLogin();
-            
-            if (authResult.success) {
-                // 로그인 성공
-                showNotification('로그인 성공!', `${authResult.user.name}님, 환영합니다!`, 'success');
-                
-                // 대시보드로 리디렉션
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 1000);
-            }
+            // Google OAuth 시작 (페이지 리다이렉션)
+            await authManager.startGoogleLogin();
             
         } catch (error) {
-            console.error('Google 로그인 에러:', error);
+            console.error('❌ Google 로그인 에러:', error);
             showNotification('로그인 오류', error.message || 'Google 로그인 중 오류가 발생했습니다.', 'error');
             
-            // 버튼 복원
+            // 에러 발생 시 버튼 복원
             googleLoginBtn.disabled = false;
-            googleLoginBtn.textContent = 'Google로 로그인';
+            googleLoginBtn.innerHTML = `
+                <svg class="google-icon" viewBox="0 0 24 24" width="20" height="20">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Google로 로그인
+            `;
         }
     }
     
-    function handleForgotPassword(e) {
-        e.preventDefault();
-        
-        const email = emailInput.value.trim();
-        
-        if (email && validation.email.pattern.test(email)) {
-            showNotification('비밀번호 재설정', `${email}로 재설정 링크를 발송했습니다.`, 'success');
-        } else {
-            showNotification('이메일 입력', '먼저 이메일 주소를 입력해주세요.', 'info');
-            emailInput.focus();
-        }
-    }
-    
-    function handleSignup(e) {
-        e.preventDefault();
-        
-        showNotification('회원가입', '회원가입 기능은 준비 중입니다.', 'info');
-    }
-    
-    function handleKeyboardShortcuts(e) {
-        // Enter 키로 로그인 (폼 외부에서)
-        if (e.key === 'Enter' && !e.target.closest('form')) {
-            loginForm.dispatchEvent(new Event('submit'));
-        }
-        
-        // Escape 키로 알림 닫기
-        if (e.key === 'Escape') {
-            closeAllNotifications();
-        }
-    }
-    
+    // 환영 메시지 표시
     function showWelcomeMessage() {
-        // 첫 방문 시 환영 메시지 (선택사항)
-        const hasVisited = localStorage.getItem('mufi_has_visited');
+        console.log('👋 MUFI에 오신 것을 환영합니다!');
         
-        if (!hasVisited) {
-            setTimeout(() => {
-                showNotification('MUFI에 오신 것을 환영합니다!', 'AI 통화 분석으로 스마트한 일정 관리를 시작하세요.', 'info');
-                localStorage.setItem('mufi_has_visited', 'true');
-            }, 1000);
-        }
+        const messages = [
+            '🚀 AI 기반 통화 분석으로 업무 효율을 높여보세요',
+            '📅 자동 일정 추출로 시간을 절약하세요',
+            '👥 팀과의 협업을 더욱 원활하게 만들어보세요'
+        ];
+        
+        const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+        
+        setTimeout(() => {
+            showNotification('MUFI에 오신 것을 환영합니다!', randomMessage, 'info');
+        }, 500);
     }
     
+    // 알림 표시 함수
     function showNotification(title, message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
+        // 기존 알림 제거
+        const existingNotification = document.querySelector('.notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
         
+        // 새 알림 생성
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
         notification.innerHTML = `
-            <div class="notification-title" style="font-weight: 600; margin-bottom: 4px;">${title}</div>
-            <div class="notification-message" style="font-size: 0.875rem; color: var(--color-gray-600);">${message}</div>
+            <div class="notification-content">
+                <div class="notification-title">${title}</div>
+                <div class="notification-message">${message}</div>
+            </div>
+            <button class="notification-close" onclick="this.parentElement.remove()">×</button>
         `;
         
-        notificationContainer.appendChild(notification);
-
-        // 애니메이션 시작
+        // 스타일 추가
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 10000;
+            max-width: 400px;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        `;
+        
+        const typeColors = {
+            success: '#059669',
+            error: '#dc2626',
+            info: '#2563eb',
+            warning: '#d97706'
+        };
+        
+        notification.style.borderLeft = `4px solid ${typeColors[type] || typeColors.info}`;
+        
+        // DOM에 추가
+        document.body.appendChild(notification);
+        
+        // 애니메이션으로 표시
         setTimeout(() => {
-            notification.classList.add('show');
+            notification.style.transform = 'translateX(0)';
         }, 100);
-
+        
         // 자동 제거
         setTimeout(() => {
-            removeNotification(notification);
+            if (notification.parentElement) {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 300);
+            }
         }, 5000);
         
-        // 클릭으로 제거
-        notification.addEventListener('click', () => {
-            removeNotification(notification);
-        });
-    }
-    
-    function removeNotification(notification) {
-        notification.classList.remove('show');
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 300);
-    }
-    
-    function closeAllNotifications() {
-        const notifications = document.querySelectorAll('.notification');
-        notifications.forEach(notification => {
-            removeNotification(notification);
-        });
+        console.log(`📢 ${title}: ${message}`);
     }
 });
 
-// 비밀번호 토글 함수 (HTML에서 호출)
-function togglePassword() {
-    const passwordInput = document.getElementById('password');
-    const toggleText = document.getElementById('toggle-text');
-    
-    if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        toggleText.textContent = '숨기기';
-    } else {
-        passwordInput.type = 'password';
-        toggleText.textContent = '보기';
+// 스피너 애니메이션 CSS 추가
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
-}
-
-// 전역 유틸리티 함수들
-window.MufiLogin = {
-    // 로그아웃 함수
-    logout: function() {
-        localStorage.removeItem('mufi_user');
-        localStorage.removeItem('mufi_logged_in');
-        sessionStorage.removeItem('mufi_user');
-        sessionStorage.removeItem('mufi_logged_in');
-        
-        window.location.href = 'login.html';
-    },
     
-    // 현재 사용자 정보 가져오기
-    getCurrentUser: function() {
-        const user = localStorage.getItem('mufi_user') || sessionStorage.getItem('mufi_user');
-        return user ? JSON.parse(user) : null;
-    },
-    
-    // 로그인 상태 확인
-    isLoggedIn: function() {
-        return !!(localStorage.getItem('mufi_logged_in') || sessionStorage.getItem('mufi_logged_in'));
+    .notification-content {
+        margin-bottom: 8px;
     }
-}; 
+    
+    .notification-title {
+        font-weight: 600;
+        margin-bottom: 4px;
+        color: #1f2937;
+    }
+    
+    .notification-message {
+        color: #6b7280;
+        font-size: 14px;
+        line-height: 1.4;
+    }
+    
+    .notification-close {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: none;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        color: #9ca3af;
+        padding: 4px;
+        line-height: 1;
+    }
+    
+    .notification-close:hover {
+        color: #374151;
+    }
+`;
+document.head.appendChild(style);

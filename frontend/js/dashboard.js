@@ -1,2987 +1,2680 @@
-// MUFI Dashboard - Minimal Black & White Design
-class Dashboard {
+/**
+ * MUFI 대시보드 - 프리미엄 통화 분석 시스템
+ * 사용자 친화적인 인터페이스와 완전한 백엔드 연동
+ */
+
+class MUFIDashboard {
     constructor() {
-        this.analysisResults = [];
-        this.emailHistory = [];
-        this.currentAnalysisData = null;
-        this.contacts = [];
-        this.selectedRecipients = [];
-        this.selectedContacts = [];
-        this.selectedICS = null;
-        this.schedules = []; // 기존 일정들
-        this.shareableSchedules = [];
-        this.selectedShareSchedules = [];
-        this.shareRecipients = [];
-        this.selectedShareContacts = [];
-        this.receivedSchedules = [];
-        this.currentReceivedSchedule = null;
-        this.selectedSchedulesForShare = [];
-        this.currentFile = null; // 현재 업로드된 파일 저장
-        this.authManager = window.authManager; // AuthManager 인스턴스
+        console.log('🎯 대시보드 생성자 호출');
         
-        this.init();
-    }
-    
-    async init() {
-        // 사용자 인증 확인
-        await this.checkAuthentication();
-        
-        this.setupEventListeners();
-        this.loadSampleData();
-        
-        // 기본 입력 방식을 파일 업로드로 설정
-        this.switchInputMethod('file');
-    }
-
-    /**
-     * 사용자 인증 상태 확인
-     */
-    async checkAuthentication() {
-        try {
-            if (!this.authManager) {
-                // AuthManager 로드 대기
-                await this.loadAuthManager();
-            }
-
-            const authStatus = await this.authManager.checkAuthStatus();
-            
-            if (!authStatus.authenticated) {
-                // 인증되지 않은 사용자는 로그인 페이지로 리디렉션
-                window.location.href = 'login.html';
-                return;
-            }
-
-            // 사용자 정보 표시
-            this.displayUserInfo(authStatus.user);
-            
-        } catch (error) {
-            console.error('Authentication check failed:', error);
-            window.location.href = 'login.html';
-        }
-    }
-
-    /**
-     * AuthManager 로드
-     */
-    async loadAuthManager() {
-        // AuthManager가 없으면 동적으로 로드
-        if (!window.authManager) {
-            try {
-                const authModule = await import('./modules/auth.js');
-                // AuthManager는 이미 전역으로 설정됨
-                this.authManager = window.authManager;
-            } catch (error) {
-                console.error('Failed to load AuthManager:', error);
-                throw error;
-            }
+        // DOM이 준비되면 즉시 초기화
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.init());
         } else {
-            this.authManager = window.authManager;
+        this.init();
         }
     }
 
-    /**
-     * 사용자 정보 표시
-     */
-    displayUserInfo(user) {
-        // 헤더에 사용자 정보 표시
-        const headerActions = document.querySelector('.header-actions');
-        if (headerActions && user) {
-            headerActions.innerHTML = `
-                <div class="user-info">
-                    ${user.picture ? `<img src="${user.picture}" alt="${user.name}" class="user-avatar">` : ''}
-                    <span class="user-name">${user.name}</span>
-                </div>
-                <button class="btn btn-outline" onclick="dashboard.handleLogout()">로그아웃</button>
-            `;
-        }
+    init() {
+        console.log('🚀 대시보드 초기화 시작');
+        this.initializeDashboard();
     }
 
-    /**
-     * 로그아웃 처리
-     */
-    async handleLogout() {
+    initializeDashboard() {
+        console.log('📋 DOM 요소들 바인딩 시작...');
+        
         try {
-            await this.authManager.logout();
-            window.location.href = 'login.html';
+            // DOM 요소들
+            this.elements = {
+                // 네비게이션
+                navLinks: document.querySelectorAll('.nav-link'),
+                sections: document.querySelectorAll('.content-section'),
+                
+                // 탭 시스템
+                tabButtons: document.querySelectorAll('.tab-button'),
+                tabContents: document.querySelectorAll('.tab-content'),
+                
+                // 파일 업로드
+                uploadArea: document.getElementById('uploadArea'),
+                fileInput: document.getElementById('fileInput'),
+                uploadBtn: document.getElementById('uploadBtn'),
+                fileInfo: document.getElementById('fileInfo'),
+                fileName: document.getElementById('fileName'),
+                fileSize: document.getElementById('fileSize'),
+                removeFileBtn: document.getElementById('removeFileBtn'),
+                
+                // 텍스트 입력
+                textContent: document.getElementById('textContent'),
+                analyzeTextBtn: document.getElementById('analyzeTextBtn'),
+                
+                // 결과 표시
+                analysisResults: document.getElementById('analysisResults'),
+                analysisContent: document.getElementById('analysisContent'),
+                
+                // 사용자 프로필
+                userProfile: document.getElementById('userProfile'),
+                userAvatar: document.getElementById('userAvatar'),
+                userInitials: document.getElementById('userInitials'),
+                userName: document.getElementById('userName'),
+                userEmail: document.getElementById('userEmail'),
+                
+                // 인원 관리
+                addMemberBtn: document.getElementById('addMemberBtn'),
+                membersContainer: document.getElementById('membersContainer'),
+                rolesGrid: document.getElementById('rolesGrid'),
+                
+                // 로딩 & 모달
+                loadingOverlay: document.getElementById('loadingOverlay'),
+                modal: document.getElementById('modal'),
+                modalTitle: document.getElementById('modalTitle'),
+                modalBody: document.getElementById('modalBody'),
+                modalClose: document.getElementById('modalClose')
+            };
+            
+            console.log('✅ DOM 요소 바인딩 완료');
+            
+            // 누락된 요소 확인
+            const missingElements = [];
+            Object.entries(this.elements).forEach(([key, element]) => {
+                if (!element || (element.length !== undefined && element.length === 0)) {
+                    missingElements.push(key);
+                }
+            });
+            
+            if (missingElements.length > 0) {
+                console.warn('⚠️ 누락된 DOM 요소들:', missingElements);
+            }
+
+            // 상태 관리
+            this.state = {
+                selectedFile: null,
+                isAnalyzing: false,
+                currentSection: 'analysis',
+                currentTab: 'file-upload',
+                members: []
+            };
+
+            // 설정
+            this.config = {
+                maxFileSize: 10 * 1024 * 1024, // 10MB
+                allowedTypes: ['.txt'],
+                apiBaseUrl: window.location.origin // FastAPI 서버 URL
+            };
+
+            console.log('🔧 이벤트 바인딩 시작...');
+            this.bindEvents();
+            this.updateButtonStates();
+            
+            // 사용자 정보 로드
+            console.log('👤 사용자 정보 로드 시작...');
+            this.loadUserInfo();
+            
+            this.hideLoading();
+            console.log('🎉 대시보드 초기화 완료!');
+            this.showToast('환영합니다! MUFI에서 통화 내용을 스마트하게 분석해보세요 🚀', 'info');
+            
         } catch (error) {
-            console.error('Logout failed:', error);
-            // 실패해도 로그인 페이지로 이동
-            window.location.href = 'login.html';
+            console.error('❌ 대시보드 초기화 실패:', error);
+            // 로딩 오버레이 숨기기
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'none';
+            }
         }
     }
-    
-    setupEventListeners() {
-        // 탭 전환
-        document.querySelectorAll('.nav-tab').forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                this.switchTab(e.target.dataset.tab);
+
+
+
+    bindEvents() {
+        // 네비게이션 이벤트
+        // 네비게이션 이벤트 바인딩
+        console.log('🔗 네비게이션 링크 개수:', this.elements.navLinks.length);
+        this.elements.navLinks.forEach((link, index) => {
+            console.log(`🔗 네비게이션 링크 ${index}:`, link.dataset.section, link.textContent.trim());
+            link.addEventListener('click', (e) => {
+                console.log('🖱️ 네비게이션 클릭됨:', e.currentTarget.dataset.section);
+                this.handleNavigation(e);
             });
         });
-        
-        // 입력 방식 탭 전환
-        document.querySelectorAll('.input-method-tab').forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                this.switchInputMethod(e.target.closest('.input-method-tab').dataset.method);
-            });
+
+        // 탭 이벤트
+        this.elements.tabButtons.forEach(button => {
+            button.addEventListener('click', (e) => this.handleTabSwitch(e));
         });
-        
-        
-        
-        // 파일 업로드
-        const fileInput = document.getElementById('file-input');
-        const fileUpload = document.getElementById('file-upload-area');
-        
-        if (fileUpload && fileInput) {
-        fileUpload.addEventListener('click', () => {
-            fileInput.click();
-        });
-        
-        fileInput.addEventListener('change', (e) => {
-            this.handleFileUpload(e.target.files[0]);
-        });
-        
+
+        // 파일 업로드 이벤트
+        this.elements.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+        this.elements.uploadBtn.addEventListener('click', () => this.handleFileUpload());
+        if (this.elements.removeFileBtn) {
+            this.elements.removeFileBtn.addEventListener('click', () => this.removeFile());
+        }
+
         // 드래그 앤 드롭
-        fileUpload.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            fileUpload.classList.add('drag-over');
-        });
-        
-        fileUpload.addEventListener('dragleave', () => {
-            fileUpload.classList.remove('drag-over');
-        });
-        
-        fileUpload.addEventListener('drop', (e) => {
-            e.preventDefault();
-            fileUpload.classList.remove('drag-over');
-                
-                // 파일이 있는 경우
-                if (e.dataTransfer.files.length > 0) {
-            this.handleFileUpload(e.dataTransfer.files[0]);
-                }
-                // 텍스트가 있는 경우 (복사한 텍스트를 드래그 앤 드롭)
-                else if (e.dataTransfer.getData('text/plain')) {
-                    const text = e.dataTransfer.getData('text/plain');
-                    this.handleTextDrop(text);
-                }
-            });
-        }
-        
-        // 파일 제거 버튼
-        const clearFileBtn = document.getElementById('clear-file-btn');
-        if (clearFileBtn) {
-            clearFileBtn.addEventListener('click', () => {
-                this.clearFile();
-            });
-        }
-        
-        // 분석 버튼 이벤트
-        const analyzeBtn = document.getElementById('analyze-btn');
-        const textAnalyzeBtn = document.getElementById('text-analyze-btn');
-        const clearAllBtn = document.getElementById('clear-all-btn');
-        
-        if (analyzeBtn) {
-            analyzeBtn.addEventListener('click', () => {
-                const fileInput = document.getElementById('file-input');
-                const file = this.currentFile || (fileInput && fileInput.files.length > 0 ? fileInput.files[0] : null);
-                if (file) {
-                    this.analyzeFile(file);
-                }
-            });
-        }
-        
-        if (textAnalyzeBtn) {
-            textAnalyzeBtn.addEventListener('click', () => {
-                this.analyzeText();
-            });
-        }
-        
-        if (clearAllBtn) {
-            clearAllBtn.addEventListener('click', () => {
-                this.clearAllInput();
-            });
-        }
-        
-        // 텍스트 입력 카운터
-        const callContentTextarea = document.getElementById('call-content');
-        if (callContentTextarea) {
-            // 입력 이벤트 (타이핑, 붙여넣기 등)
-            callContentTextarea.addEventListener('input', (e) => {
-                this.updateTextCounter(e.target.value.length);
-                this.updateAnalyzeButton();
-            });
-            
-            // 붙여넣기 이벤트 (더 정확한 처리)
-            callContentTextarea.addEventListener('paste', (e) => {
-                // 약간의 지연을 두고 텍스트 카운터 업데이트 (붙여넣기 완료 후)
-                setTimeout(() => {
-                    this.updateTextCounter(e.target.value.length);
-                    this.updateAnalyzeButton();
-                }, 10);
-            });
-            
-            // 드래그 앤 드롭으로 텍스트 붙여넣기
-            callContentTextarea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                e.target.classList.remove('drag-over');
-                
-                const text = e.dataTransfer.getData('text/plain');
-                if (text) {
-                    // 현재 커서 위치에 텍스트 삽입
-                    const start = e.target.selectionStart;
-                    const end = e.target.selectionEnd;
-                    const currentValue = e.target.value;
-                    const newValue = currentValue.substring(0, start) + text + currentValue.substring(end);
-                    
-                    // 최대 길이 체크
-                    if (newValue.length <= 10000) {
-                        e.target.value = newValue;
-                        e.target.setSelectionRange(start + text.length, start + text.length);
-                        this.updateTextCounter(newValue.length);
-                        this.updateAnalyzeButton();
-                        
-                        // 시각적 피드백
-                        e.target.classList.add('pasting');
-                        setTimeout(() => {
-                            e.target.classList.remove('pasting');
-                        }, 500);
-                    } else {
-                        this.showNotification('텍스트 길이 초과', '최대 10,000자까지 입력 가능합니다.', 'error');
-                    }
-                }
-            });
-            
-            // 드래그 오버 이벤트
-            callContentTextarea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                e.target.classList.add('drag-over');
-            });
-            
-            callContentTextarea.addEventListener('dragleave', (e) => {
-                e.target.classList.remove('drag-over');
-            });
-            
-            // 키보드 단축키 지원
-            callContentTextarea.addEventListener('keydown', (e) => {
-                // Ctrl+V 또는 Cmd+V (붙여넣기)
-                if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-                    // 기본 붙여넣기 동작 후 카운터 업데이트
-                    setTimeout(() => {
-                        const newLength = e.target.value.length;
-                        if (newLength > 10000) {
-                            e.target.value = e.target.value.substring(0, 10000);
-                            this.showNotification('텍스트 길이 초과', '최대 10,000자까지만 입력됩니다.', 'warning');
-                        }
-                        this.updateTextCounter(e.target.value.length);
-                        this.updateAnalyzeButton();
-                    }, 10);
-                }
-                
-                // Ctrl+A 또는 Cmd+A (전체 선택)
-                if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-                    // 기본 전체 선택 동작 허용
-                }
-            });
-        }
-        
-        // 모달 클로즈
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    this.closeModal(modal.id);
-                }
-            });
-        });
-    }
-    
-    switchTab(tabName) {
-        // 모든 탭 비활성화
-        document.querySelectorAll('.nav-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.remove('active');
-        });
-        
-        // 선택된 탭 활성화
-        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-        document.getElementById(`${tabName}-tab`).classList.add('active');
-    }
-    
-    switchInputMethod(method) {
-        // 모든 입력 방식 탭 비활성화
-        document.querySelectorAll('.input-method-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        
-        document.querySelectorAll('.input-section').forEach(section => {
-            section.classList.remove('active');
-        });
-        
-        // 선택된 입력 방식 활성화
-        document.querySelector(`[data-method="${method}"]`).classList.add('active');
-        document.getElementById(`${method}-input-section`).classList.add('active');
-        
-        // 버튼 상태 업데이트
-        this.updateAnalyzeButton();
-    }
-    
+        this.elements.uploadArea.addEventListener('dragover', (e) => this.handleDragOver(e));
+        this.elements.uploadArea.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+        this.elements.uploadArea.addEventListener('drop', (e) => this.handleDrop(e));
+        this.elements.uploadArea.addEventListener('click', () => this.elements.fileInput.click());
 
-    
-    updateTextCounter(length) {
-        const textCount = document.getElementById('text-count');
-        const textCounter = document.querySelector('.text-counter');
-        const maxLength = 10000;
-        
-        if (textCount) {
-            textCount.textContent = length.toLocaleString();
-            
-            // 색상 변경
-            textCounter.classList.remove('warning', 'error');
-            if (length > maxLength * 0.9) {
-                textCounter.classList.add('error');
-            } else if (length > maxLength * 0.8) {
-                textCounter.classList.add('warning');
-            }
-        }
-    }
-    
-    updateAnalyzeButton() {
-        const activeMethod = document.querySelector('.input-method-tab.active')?.dataset.method;
-        const analyzeBtn = document.getElementById('analyze-btn');
-        const textAnalyzeBtn = document.getElementById('text-analyze-btn');
-            const fileInput = document.getElementById('file-input');
-            const callContent = document.getElementById('call-content');
-        
+        // 텍스트 입력 이벤트
+        this.elements.textContent.addEventListener('input', () => this.updateButtonStates());
+        this.elements.analyzeTextBtn.addEventListener('click', () => this.handleTextAnalysis());
 
-        
-        // 파일 업로드 분석 버튼 상태 (항상 체크)
-        if (analyzeBtn) {
-            const hasFile = this.currentFile !== null || (fileInput && fileInput.files && fileInput.files.length > 0);
-            analyzeBtn.disabled = !hasFile;
+        // 모달 이벤트
+        this.elements.modalClose.addEventListener('click', () => this.hideModal());
+        this.elements.modal.addEventListener('click', (e) => {
+            if (e.target === this.elements.modal) this.hideModal();
+        });
+
+        // 인원 관리 이벤트
+        if (this.elements.addMemberBtn) {
+            this.elements.addMemberBtn.addEventListener('click', () => this.showAddMemberModal());
         }
-        
-        // 텍스트 분석 버튼 상태 (항상 체크)
-            if (textAnalyzeBtn) {
-                        const hasContent = callContent && callContent.value.trim().length > 0;
-            textAnalyzeBtn.disabled = !hasContent;
-            }
-        
-        // 활성 탭에 따라 버튼 표시/숨김
-        if (activeMethod === 'file') {
-            if (analyzeBtn) analyzeBtn.style.display = 'inline-flex';
-            if (textAnalyzeBtn) textAnalyzeBtn.style.display = 'none';
-        } else if (activeMethod === 'text') {
-            if (analyzeBtn) analyzeBtn.style.display = 'none';
-            if (textAnalyzeBtn) textAnalyzeBtn.style.display = 'inline-flex';
-        }
+
+        // 키보드 단축키
+        document.addEventListener('keydown', (e) => this.handleKeydown(e));
     }
-    
-    // 텍스트 드롭 처리 (파일 업로드 영역에서만 사용)
-    handleTextDrop(text) {
-        if (!text || text.trim().length === 0) return;
-        
-        // 텍스트 길이 체크
-        if (text.length > 10000) {
-            this.showNotification('텍스트 길이 초과', '최대 10,000자까지 입력 가능합니다. 직접 입력 탭을 사용해주세요.', 'error');
-            return;
-        }
-        
-        // 직접 입력 탭으로 전환하고 텍스트 설정
-        this.switchInputMethod('text');
-        
-        // 텍스트 영역에 내용 설정
-        const callContentTextarea = document.getElementById('call-content');
-        if (callContentTextarea) {
-            callContentTextarea.value = text;
-            this.updateTextCounter(text.length);
-            this.updateAnalyzeButton();
+
+    // 인증된 요청을 위한 헬퍼 메서드
+    async authenticatedFetch(url, options = {}) {
+        // URL 파라미터에서 토큰 가져오기 (fallback)
+        let token = null;
+        if (window.authManager && window.authManager.getToken) {
+            token = window.authManager.getToken();
+        } else {
+            // URL 파라미터에서 토큰 추출
+            const urlParams = new URLSearchParams(window.location.search);
+            token = urlParams.get('token');
             
-            // 포커스 설정
-            callContentTextarea.focus();
-            
-            this.showNotification('텍스트 붙여넣기 완료', '직접 입력 탭으로 전환되어 텍스트가 붙여넣어졌습니다.', 'success');
-        }
-    }
-    
-    // 텍스트 파일 읽기 (미리보기용)
-    readTextFile(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const text = e.target.result;
-            if (text && text.trim().length > 0) {
-                // 텍스트 길이 체크
-                if (text.length > 10000) {
-                    this.showNotification('파일 내용 확인', 'TXT 파일이 10,000자를 초과합니다. 파일 업로드 분석을 사용하여 전체 내용을 분석할 수 있습니다.', 'info');
-                    return;
-                }
-                
-                this.showNotification('TXT 파일 확인', 'TXT 파일이 업로드되었습니다. 파일 분석을 진행하거나, 직접 입력 탭에서 텍스트를 수정할 수 있습니다.', 'success');
+            // userInfo에서도 시도
+            if (!token && this.userInfo && this.userInfo.token) {
+                token = this.userInfo.token;
             }
+        }
+        
+        const headers = {
+            ...options.headers
         };
-        reader.onerror = () => {
-            this.showNotification('파일 읽기 오류', '텍스트 파일을 읽는 중 오류가 발생했습니다.', 'error');
-        };
-        reader.readAsText(file, 'UTF-8');
+        
+        // FormData가 아닌 경우에만 Content-Type 설정
+        if (!(options.body instanceof FormData)) {
+            headers['Content-Type'] = 'application/json';
+        }
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await fetch(url, {
+            ...options,
+            headers
+        });
+        
+        // 401 오류 시 로그아웃 처리
+        if (response.status === 401) {
+            console.log('🔒 인증 토큰 만료 - 로그인 페이지로 이동');
+            if (window.authManager && window.authManager.logout) {
+                window.authManager.logout();
+            } else {
+                window.location.href = '/login.html';
+            }
+            throw new Error('인증이 필요합니다');
+        }
+        
+        return response;
     }
 
-    
-    handleFileUpload(file) {
-        if (!file) return;
+    // 네비게이션 처리
+    handleNavigation(e) {
+        console.log('🎯 handleNavigation 호출됨');
+        e.preventDefault();
+        const targetSection = e.currentTarget.dataset.section;
+        console.log('🎯 목표 섹션:', targetSection);
         
-        // 파일 크기 체크 (10MB 제한)
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        if (file.size > maxSize) {
-            this.showNotification('파일 크기 초과', '파일 크기는 10MB 이하여야 합니다.', 'error');
-            return;
+        // 네비게이션 업데이트
+        this.elements.navLinks.forEach(link => link.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        
+        // 섹션 전환
+        this.elements.sections.forEach(section => section.classList.remove('active'));
+        const targetElement = document.getElementById(`${targetSection}-section`);
+        console.log('🎯 목표 엘리먼트:', targetElement);
+        if (targetElement) {
+            targetElement.classList.add('active');
+            this.state.currentSection = targetSection;
+            console.log('✅ 섹션 전환 완료:', targetSection);
         }
-        
-        // 파일 형식 체크
-        const allowedTypes = ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-        if (!allowedTypes.includes(file.type) && !file.name.match(/\.(txt|pdf|docx)$/i)) {
-            this.showNotification('지원하지 않는 형식', 'TXT, PDF, DOCX 파일만 업로드 가능합니다.', 'error');
-            return;
-        }
-        
-        // TXT 파일인 경우 내용을 읽어서 직접 입력 영역에도 표시
-        if (file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt')) {
-            this.readTextFile(file);
-        }
-        
-        const fileUpload = document.getElementById('file-upload-area');
-        const fileInfo = document.getElementById('file-info');
-        const fileName = document.getElementById('file-name');
-        const fileSize = document.getElementById('file-size');
-        
 
-        
-        // 파일 정보 표시
-        fileName.textContent = file.name;
-        fileSize.textContent = `${(file.size / 1024 / 1024).toFixed(2)}MB`;
-        
-        // UI 업데이트
-        fileUpload.style.display = 'none';
-        fileInfo.style.display = 'flex';
-        
-        // 현재 파일 저장
-        this.currentFile = file;
-        
-        // 분석 버튼 활성화
-        this.updateAnalyzeButton();
-        
-        this.showNotification('파일 업로드 완료', `${file.name} 파일이 업로드되었습니다.`);
+        // 일정 관리 섹션인 경우 일정 목록 로드
+        if (targetSection === 'schedules') {
+            console.log('🔍 [DEBUG] 일정 관리 탭 클릭됨 - loadSchedules 호출');
+            this.loadSchedules();
+        }
     }
-    
-    async analyzeFile(file) {
-        const analyzeBtn = document.getElementById('analyze-btn');
+
+    // 탭 전환 처리
+    handleTabSwitch(e) {
+                e.preventDefault();
+        const targetTab = e.currentTarget.dataset.tab;
         
+        // 탭 버튼 업데이트
+        this.elements.tabButtons.forEach(button => button.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        
+        // 탭 컨텐츠 전환
+        this.elements.tabContents.forEach(content => content.classList.remove('active'));
+        const targetContent = document.getElementById(targetTab);
+        if (targetContent) {
+            targetContent.classList.add('active');
+            this.state.currentTab = targetTab;
+        }
+        
+        // 탭 전환 시 버튼 상태 업데이트
+        this.updateButtonStates();
+        
+        console.log(`탭 전환: ${targetTab}`);
+    }
+
+    // 파일 선택 처리
+    handleFileSelect(e) {
+        const file = e.target.files[0];
+        if (file) {
+            this.validateAndSetFile(file);
+        }
+    }
+
+    // 파일 검증 및 설정
+    validateAndSetFile(file) {
+        // 파일 형식 검증
+        const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+        if (!this.config.allowedTypes.includes(fileExtension)) {
+            this.showToast('⚠️ 지원하지 않는 파일 형식입니다. .txt 파일만 업로드 가능합니다.', 'error');
+            return;
+        }
+
+        // 파일 크기 검증
+        if (file.size > this.config.maxFileSize) {
+            this.showToast('⚠️ 파일 크기가 너무 큽니다. 10MB 이하의 파일만 업로드 가능합니다.', 'error');
+            return;
+        }
+
+        // 파일 설정
+        this.state.selectedFile = file;
+        this.displayFileInfo(file);
+        this.updateButtonStates();
+        this.showToast('✅ 파일이 선택되었습니다. 이제 분석을 시작할 수 있습니다!', 'success');
+    }
+
+    // 파일 정보 표시
+    displayFileInfo(file) {
+        this.elements.fileName.textContent = file.name;
+        this.elements.fileSize.textContent = this.formatFileSize(file.size);
+        this.elements.fileInfo.classList.add('show');
+    }
+
+    // 파일 크기 포맷팅
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // 파일 제거
+    removeFile() {
+        this.state.selectedFile = null;
+        this.elements.fileInput.value = '';
+        this.elements.fileInfo.classList.remove('show');
+        this.updateButtonStates();
+        this.showToast('파일이 제거되었습니다.', 'info');
+    }
+
+    // 드래그 오버
+    handleDragOver(e) {
+        e.preventDefault();
+        this.elements.uploadArea.classList.add('dragover');
+    }
+
+    // 드래그 리브
+    handleDragLeave(e) {
+        e.preventDefault();
+        this.elements.uploadArea.classList.remove('dragover');
+    }
+
+    // 드롭 처리
+    handleDrop(e) {
+        e.preventDefault();
+        this.elements.uploadArea.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            this.validateAndSetFile(files[0]);
+        }
+    }
+
+    // 파일 업로드 및 분석
+    async handleFileUpload() {
+        if (!this.state.selectedFile || this.state.isAnalyzing) return;
+
+        this.state.isAnalyzing = true;
+        this.showLoading('📄 파일을 읽는 중입니다...');
+        this.updateButtonStates();
+
         try {
-            // 분석 시작 상태로 변경
-            this.setAnalysisState('analyzing');
-        analyzeBtn.textContent = '분석 중...';
-        analyzeBtn.disabled = true;
-        
-            // FormData 생성
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', this.state.selectedFile);
             
-            // 새로운 API 엔드포인트 사용 (DB 저장)
-            const response = await fetch('/api/analyze/file', {
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/analyze/file`, {
                 method: 'POST',
                 body: formData
             });
             
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || '파일 분석에 실패했습니다.');
+                throw new Error(`서버 오류: ${response.status}`);
             }
+
+            this.showLoading('🤖 AI가 통화 내용을 꼼꼼히 분석하고 있습니다...');
             
             const result = await response.json();
             
-            // 분석 결과 표시 (새로운 형식)
-            if (result.success && result.data) {
-                this.displayAnalysisResultFromDB(result.data);
-                this.showNotification('분석 완료', '통화 내용 분석이 완료되고 저장되었습니다.');
+            if (result.success) {
+                this.displayAnalysisResults(result.data);
+                this.showToast('🎉 분석이 완료되었습니다! 결과를 확인해보세요.', 'success');
             } else {
-                throw new Error(result.message || '분석 결과를 받을 수 없습니다.');
+                throw new Error(result.message || '분석 중 오류가 발생했습니다.');
             }
             
         } catch (error) {
-            console.error('파일 분석 오류:', error);
-            this.setAnalysisState('error');
-            this.showNotification('분석 오류', `파일 분석 중 오류가 발생했습니다: ${error.message}`, 'error');
+            console.error('파일 업로드 오류:', error);
+            this.showToast(`❌ 분석 실패: ${error.message}`, 'error');
         } finally {
-            analyzeBtn.textContent = '분석 시작';
-            this.updateAnalyzeButton();
+            this.state.isAnalyzing = false;
+            this.hideLoading();
+            this.updateButtonStates();
         }
     }
-    
-    async analyzeText() {
-        const textAnalyzeBtn = document.getElementById('text-analyze-btn');
-        const callContent = document.getElementById('call-content');
-        
-        if (!callContent.value.trim()) {
-            this.showNotification('내용 없음', '분석할 통화 내용을 입력해주세요.', 'error');
-            return;
-        }
-        
+
+    // 텍스트 분석
+    async handleTextAnalysis() {
+        const content = this.elements.textContent.value.trim();
+        if (!content || this.state.isAnalyzing) return;
+
+        this.state.isAnalyzing = true;
+        this.showLoading('🤖 AI가 입력하신 내용을 세심하게 분석하고 있습니다...');
+        this.updateButtonStates();
+
         try {
-            // 분석 시작 상태로 변경
-            this.setAnalysisState('analyzing');
-            textAnalyzeBtn.textContent = '분석 중...';
-            textAnalyzeBtn.disabled = true;
-            
-            // 새로운 API 엔드포인트 사용 (DB 저장)
-            const response = await fetch('/api/analyze/text', {
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/analyze/text`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    content: callContent.value.trim()
-                })
+                body: JSON.stringify({ content })
             });
             
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || '텍스트 분석에 실패했습니다.');
-            }
-            
-            const result = await response.json();
-            
-            // 분석 결과 표시 (새로운 형식)
-            if (result.success && result.data) {
-                this.displayAnalysisResultFromDB(result.data);
-                this.showNotification('분석 완료', '통화 내용 분석이 완료되고 저장되었습니다.');
-            } else {
-                throw new Error(result.message || '분석 결과를 받을 수 없습니다.');
-            }
-            
-        } catch (error) {
-            console.error('텍스트 분석 오류:', error);
-            this.setAnalysisState('error');
-            this.showNotification('분석 오류', `텍스트 분석 중 오류가 발생했습니다: ${error.message}`, 'error');
-        } finally {
-            textAnalyzeBtn.textContent = '분석 시작';
-            this.updateAnalyzeButton();
-        }
-    }
-    
-    clearFile() {
-        const fileUpload = document.getElementById('file-upload-area');
-        const fileInfo = document.getElementById('file-info');
-        const fileInput = document.getElementById('file-input');
-        
-        // UI 초기화
-        if (fileUpload) fileUpload.style.display = 'block';
-        if (fileInfo) fileInfo.style.display = 'none';
-        if (fileInput) fileInput.value = '';
-        
-        // 현재 파일 초기화
-        this.currentFile = null;
-        
-        // 분석 버튼 비활성화
-        this.updateAnalyzeButton();
-    }
-    
-    clearAllInput() {
-        const activeMethod = document.querySelector('.input-method-tab.active')?.dataset.method;
-        
-        if (activeMethod === 'file') {
-            this.clearFile();
-            this.showNotification('파일 제거 완료', '업로드된 파일이 제거되었습니다.');
-        } else if (activeMethod === 'text') {
-            const callContent = document.getElementById('call-content');
-            if (callContent) {
-                callContent.value = '';
-                this.updateTextCounter(0);
-                this.updateAnalyzeButton();
-            }
-            this.showNotification('텍스트 초기화 완료', '입력된 텍스트가 초기화되었습니다.');
-        }
-        
-        // 분석 결과 초기화
-        this.clearAnalysisResults();
-    }
-    
-    clearAnalysisResults() {
-        // 분석 상태를 초기 상태로 되돌리기
-        this.setAnalysisState('waiting');
-        
-        // 분석 결과 컨테이너 초기화
-        const summaryValue = document.getElementById('summary-value');
-        const descriptionValue = document.getElementById('description-value');
-        const locationValue = document.getElementById('location-value');
-        const startdateValue = document.getElementById('startdate-value');
-        const enddateValue = document.getElementById('enddate-value');
-        const participantsList = document.getElementById('participants-list');
-        const actionsList = document.getElementById('actions-list');
-        
-        if (summaryValue) summaryValue.textContent = '분석 후 요약이 여기에 표시됩니다.';
-        if (descriptionValue) descriptionValue.textContent = '분석 후 상세 설명이 여기에 표시됩니다.';
-        if (locationValue) locationValue.textContent = '분석 후 장소가 여기에 표시됩니다.';
-        if (startdateValue) startdateValue.textContent = '분석 후 시작일시가 여기에 표시됩니다.';
-        if (enddateValue) enddateValue.textContent = '분석 후 종료일시가 여기에 표시됩니다.';
-        
-        // 참석자 목록 초기화
-        if (participantsList) {
-            participantsList.innerHTML = `
-                <div class="participants-empty">
-                    <span class="empty-icon">👤</span>
-                    <span class="empty-text">참석자 정보가 분석되면 여기에 표시됩니다</span>
-                </div>
-            `;
-        }
-        
-        // 액션 아이템 초기화
-        if (actionsList) {
-            actionsList.innerHTML = `
-                <div class="actions-empty">
-                    <span class="empty-icon">📋</span>
-                    <span class="empty-text">액션 아이템이 분석되면 여기에 표시됩니다</span>
-                </div>
-            `;
-        }
-        
-        // 카운터 초기화
-        this.updateParticipantsCount(0);
-        this.updateActionsCount(0);
-    }
-    
-    displayAnalysisResult(type, source, apiResult = null) {
-        let analysisData;
-        
-        if (apiResult) {
-            // 실제 API 결과 사용 - DB에서 불러온 데이터 형태로 변환
-            analysisData = {
-                id: apiResult.id,
-                summary: apiResult.summary,
-                description: apiResult.description,
-                location: apiResult.schedules?.[0]?.location || '',
-                startdate: this.formatScheduleDateTime(apiResult.schedules?.[0]),
-                enddate: this.formatScheduleEndDateTime(apiResult.schedules?.[0]),
-                participants: apiResult.participants || [],
-                actions: apiResult.actions || []
-            };
-        } else {
-            // 기본값 (API 호출 실패 시)
-            analysisData = {
-                summary: type === 'file' ? 
-                    `업로드된 파일 "${source}"에 대한 통화 분석 결과입니다. 주요 안건과 결정사항을 정리했습니다.` :
-                    `통화 내용을 분석한 결과입니다. 주요 논의사항과 향후 계획을 요약했습니다.`,
-                description: type === 'file' ?
-                    '주요 요구사항 검토, 일정 계획 수립, 역할 분담에 대해 논의했습니다. 다음 단계 진행을 위한 구체적인 액션 아이템들이 도출되었습니다.' :
-                    '프로젝트 진행 상황 점검과 향후 계획에 대해 논의했습니다. 팀 간 협업 방안과 일정 조정이 필요한 부분들을 확인했습니다.',
-                location: type === 'file' ? '회의실 A (본사 3층)' : '온라인 회의 (Zoom)',
-                startdate: '2024-01-22 14:00',
-                enddate: '2024-01-22 15:30',
-                participants: [
-                    { name: "김대리", email: "kim@company.com", role: "개발팀" },
-                    { name: "이과장", email: "lee@company.com", role: "기획팀" }
-                ],
-                actions: [
-                    { 
-                        text: "프로젝트 일정 검토 및 마일스톤 설정", 
-                        assignee: "김대리", 
-                        due_date: "2024-01-25",
-                        is_completed: false
-                    },
-                    { 
-                        text: "클라이언트 요구사항 문서 작성", 
-                        assignee: "이과장", 
-                        due_date: "2024-01-26",
-                        is_completed: false
-                    }
-                ]
-            };
-        }
-        
-        this.renderNewAnalysisResult(analysisData);
-        
-        // 분석 결과 저장
-        this.currentAnalysisData = analysisData;
-        this.analysisResults.push({
-            type: type,
-            source: type === 'file' ? source : '직접 입력',
-            timestamp: new Date(),
-            data: analysisData
-        });
-    }
-    
-    renderNewAnalysisResult(data) {
-        // 분석 상태를 완료로 변경
-        this.setAnalysisState('complete');
-        
-        // 각 섹션별로 데이터 업데이트
-        this.updateSummarySection(data.summary);
-        this.updateScheduleSection(data);
-        this.updateDescriptionSection(data.description);
-        this.updateParticipantsSection(data.participants);
-        this.updateActionsSection(data.actions);
-        
-        // 수정 버튼 활성화
-        this.enableEditButtons();
-    }
-    
-    setAnalysisState(state) {
-        const emptyState = document.getElementById('analysis-empty-state');
-        const loadingState = document.getElementById('analysis-loading-state');
-        const completeState = document.getElementById('analysis-complete-state');
-        const statusBadge = document.querySelector('.analysis-status .status-badge');
-        
-        // 모든 상태 숨기기
-        if (emptyState) emptyState.style.display = 'none';
-        if (loadingState) loadingState.style.display = 'none';
-        if (completeState) completeState.style.display = 'none';
-        
-        // 상태에 따라 표시
-        switch(state) {
-            case 'waiting':
-                if (emptyState) emptyState.style.display = 'flex';
-                if (statusBadge) {
-                    statusBadge.className = 'status-badge status-waiting';
-                    statusBadge.textContent = '분석 대기중';
-                }
-                break;
-            case 'analyzing':
-                if (loadingState) loadingState.style.display = 'flex';
-                if (statusBadge) {
-                    statusBadge.className = 'status-badge status-analyzing';
-                    statusBadge.textContent = '분석 진행중';
-                }
-                break;
-            case 'complete':
-                if (completeState) completeState.style.display = 'flex';
-                if (statusBadge) {
-                    statusBadge.className = 'status-badge status-complete';
-                    statusBadge.textContent = '분석 완료';
-                }
-                break;
-            case 'error':
-                if (emptyState) emptyState.style.display = 'flex';
-                if (statusBadge) {
-                    statusBadge.className = 'status-badge status-error';
-                    statusBadge.textContent = '분석 실패';
-                }
-                break;
-        }
-    }
-    
-    updateSummarySection(summary) {
-        const summaryValue = document.getElementById('summary-value');
-        if (summaryValue) {
-            summaryValue.textContent = summary;
-        }
-    }
-    
-    updateScheduleSection(data) {
-        const locationValue = document.getElementById('location-value');
-        const startdateValue = document.getElementById('startdate-value');
-        const enddateValue = document.getElementById('enddate-value');
-        
-        if (locationValue) locationValue.textContent = data.location;
-        if (startdateValue) startdateValue.textContent = this.formatDateTime(data.startdate);
-        if (enddateValue) enddateValue.textContent = this.formatDateTime(data.enddate);
-    }
-    
-    updateDescriptionSection(description) {
-        const descriptionValue = document.getElementById('description-value');
-        if (descriptionValue) {
-            descriptionValue.textContent = description;
-        }
-    }
-    
-    updateParticipantsSection(participants) {
-        const participantsList = document.getElementById('participants-list');
-        if (!participantsList || !participants || participants.length === 0) {
-            return;
-        }
-        
-        participantsList.innerHTML = participants.map(participant => `
-            <div class="participant-item">
-                            <div class="participant-info">
-                    <div class="participant-avatar">
-                        ${participant.name.charAt(0)}
-                            </div>
-                    <div class="participant-details">
-                        <div class="participant-name">${participant.name}</div>
-                        ${participant.role ? `<div class="participant-role">${participant.role}</div>` : ''}
-                    </div>
-                </div>
-                ${participant.email ? `<div class="participant-email">${participant.email}</div>` : ''}
-            </div>
-        `).join('');
-        
-        this.updateParticipantsCount(participants.length);
-    }
-    
-    updateActionsSection(actions) {
-        const actionsList = document.getElementById('actions-list');
-        if (!actionsList || !actions || actions.length === 0) {
-            return;
-        }
-        
-        actionsList.innerHTML = actions.map((action, index) => `
-            <div class="action-item">
-                <input type="checkbox" class="action-checkbox" ${action.is_completed ? 'checked' : ''} 
-                       onchange="toggleActionComplete(${index})">
-                <div class="action-content">
-                    <div class="action-text">${action.text}</div>
-                    <div class="action-meta">
-                        <div class="action-assignee">
-                            <span>👤</span>
-                            <span>${action.assignee}</span>
-                            </div>
-                        <div class="action-due">
-                            <span>📅</span>
-                            <span>${this.formatDate(action.due_date)}</span>
-                        </div>
-                </div>
-            </div>
-            </div>
-        `).join('');
-        
-        this.updateActionsCount(actions.length);
-    }
-    
-    updateParticipantsCount(count) {
-        const participantsCount = document.getElementById('participants-count');
-        if (participantsCount) {
-            participantsCount.textContent = `${count}명`;
-        }
-    }
-    
-    updateActionsCount(count) {
-        const actionsCount = document.getElementById('actions-count');
-        if (actionsCount) {
-            actionsCount.textContent = `${count}개`;
-        }
-    }
-    
-    enableEditButtons() {
-        const editButtons = document.querySelectorAll('.field-edit-btn');
-        editButtons.forEach(button => {
-            button.disabled = false;
-        });
-    }
-    
-    formatDate(dateStr) {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('ko-KR', {
-            month: 'long',
-            day: 'numeric'
-        });
-    }
-    
-    renderAnalysisWithTabs(data) {
-        // 기존 함수는 호환성을 위해 유지하되, 새로운 함수로 리다이렉트
-        this.renderNewAnalysisResult(data);
-    }
-    
-    toggleActionComplete(actionIndex) {
-        const actionElement = document.getElementById(`action-${actionIndex}`);
-        const checkbox = actionElement?.querySelector('.action-checkbox');
-        
-        if (!checkbox) return;
-        
-        const isCompleted = checkbox.checked;
-        
-        // UI 업데이트
-        if (isCompleted) {
-            actionElement.classList.add('completed');
-        } else {
-            actionElement.classList.remove('completed');
-        }
-        
-        // 서버에 상태 업데이트 (DB 저장)
-        this.updateActionStatus(actionIndex, isCompleted);
-        
-        // 현재 분석 데이터의 액션 상태 업데이트
-        if (this.currentAnalysisData && this.currentAnalysisData.actions) {
-            this.currentAnalysisData.actions[actionIndex].is_completed = isCompleted;
-            
-            // 알림 표시
-            const actionText = this.currentAnalysisData.actions[actionIndex].text;
-            const status = isCompleted ? '완료' : '미완료';
-            this.showNotification('액션 아이템 업데이트', `"${actionText}" 항목이 ${status}로 변경되었습니다.`);
-        }
-    }
-    
-    renderParticipants(participants) {
-        return participants.map(participant => `
-            <div class="participant-item">
-                <div class="participant-name">${participant.name}</div>
-                ${participant.role ? `<div class="participant-role">${participant.role}</div>` : ''}
-                ${participant.email ? `<div class="participant-email">${participant.email}</div>` : ''}
-            </div>
-        `).join('');
-    }
-    
-    renderScheduleTabs(schedules) {
-        return schedules.map((schedule, index) => `
-            <div class="schedule-tab-item ${index === 0 ? 'active' : ''}" data-tab="${index}">
-                <div class="tab-title">${schedule.summary}</div>
-                <div class="tab-subtitle">${schedule.type} • ${schedule.assignees.join(', ') || '담당자 미정'}</div>
-            </div>
-        `).join('');
-    }
-    
-    renderScheduleFields(schedule, index) {
-        return `
-            <div class="analysis-fields-container">
-                <div class="analysis-field">
-                    <div class="analysis-field-header">
-                        <label class="analysis-field-label">📝 Summary (요약)</label>
-                        <div class="analysis-field-actions">
-                            <button class="btn btn-outline btn-sm field-edit-btn" onclick="editScheduleField(${index}, 'summary')">
-                                <span id="summary-btn-${index}">수정</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="analysis-field-value" contenteditable="false" data-field="summary" id="summary-value-${index}">${schedule.summary}</div>
-                </div>
-                
-                <div class="analysis-field">
-                    <div class="analysis-field-header">
-                        <label class="analysis-field-label">📄 Description (설명)</label>
-                        <div class="analysis-field-actions">
-                            <button class="btn btn-outline btn-sm field-edit-btn" onclick="editScheduleField(${index}, 'description')">
-                                <span id="description-btn-${index}">수정</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="analysis-field-value multiline" contenteditable="false" data-field="description" id="description-value-${index}">${schedule.description}</div>
-                </div>
-                
-                <div class="analysis-field">
-                    <div class="analysis-field-header">
-                        <label class="analysis-field-label">📍 Location (장소)</label>
-                        <div class="analysis-field-actions">
-                            <button class="btn btn-outline btn-sm field-edit-btn" onclick="editScheduleField(${index}, 'location')">
-                                <span id="location-btn-${index}">수정</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="analysis-field-value" contenteditable="false" data-field="location" id="location-value-${index}">${schedule.location}</div>
-                </div>
-                
-                <div class="analysis-field">
-                    <div class="analysis-field-header">
-                        <label class="analysis-field-label">⏰ Start Date (시작일시)</label>
-                        <div class="analysis-field-actions">
-                            <button class="btn btn-outline btn-sm field-edit-btn" onclick="editScheduleField(${index}, 'startdate')">
-                                <span id="startdate-btn-${index}">수정</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="analysis-field-value date-field" contenteditable="false" data-field="startdate" id="startdate-value-${index}">${this.formatDateTime(schedule.startdate)}</div>
-                </div>
-                
-                <div class="analysis-field">
-                    <div class="analysis-field-header">
-                        <label class="analysis-field-label">⏰ End Date (종료일시)</label>
-                        <div class="analysis-field-actions">
-                            <button class="btn btn-outline btn-sm field-edit-btn" onclick="editScheduleField(${index}, 'enddate')">
-                                <span id="enddate-btn-${index}">수정</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="analysis-field-value date-field" contenteditable="false" data-field="enddate" id="enddate-value-${index}">${this.formatDateTime(schedule.enddate)}</div>
-                </div>
-                
-                <div class="analysis-field">
-                    <div class="analysis-field-header">
-                        <label class="analysis-field-label">👤 Assignees (담당자)</label>
-                        <div class="analysis-field-actions">
-                            <button class="btn btn-outline btn-sm field-edit-btn" onclick="editScheduleField(${index}, 'assignees')">
-                                <span id="assignees-btn-${index}">수정</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="analysis-field-value" contenteditable="false" data-field="assignees" id="assignees-value-${index}">${schedule.assignees.join(', ') || '담당자 미정'}</div>
-                </div>
-                
-                <div class="analysis-field">
-                    <div class="analysis-field-header">
-                        <label class="analysis-field-label">🏷️ Type (유형)</label>
-                        <div class="analysis-field-actions">
-                            <button class="btn btn-outline btn-sm field-edit-btn" onclick="editScheduleField(${index}, 'type')">
-                                <span id="type-btn-${index}">수정</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="analysis-field-value" contenteditable="false" data-field="type" id="type-value-${index}">${this.getTypeDisplayName(schedule.type)}</div>
-                </div>
-            </div>
-        `;
-    }
-    
-    getTypeDisplayName(type) {
-        const typeMap = {
-            'meeting': '회의',
-            'task': '업무',
-            'deadline': '마감일'
-        };
-        return typeMap[type] || type;
-    }
-    
-    formatDateTime(dateTimeStr) {
-        const date = new Date(dateTimeStr);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        
-        return `${year}-${month}-${day} ${hours}:${minutes}`;
-    }
-    
-    formatScheduleDateTime(schedule) {
-        if (!schedule) return '';
-        
-        let dateTimeStr = '';
-        if (schedule.start_date) {
-            dateTimeStr = schedule.start_date;
-            if (schedule.start_time) {
-                dateTimeStr += ` ${schedule.start_time}`;
-            }
-        }
-        return dateTimeStr;
-    }
-
-    formatScheduleEndDateTime(schedule) {
-        if (!schedule) return '';
-        
-        let dateTimeStr = '';
-        if (schedule.end_date) {
-            dateTimeStr = schedule.end_date;
-            if (schedule.end_time) {
-                dateTimeStr += ` ${schedule.end_time}`;
-            }
-        }
-        return dateTimeStr;
-    }
-    
-    editField(fieldName) {
-        const fieldValue = document.getElementById(`${fieldName}-value`);
-        const buttonSpan = document.getElementById(`${fieldName}-btn`);
-        const actionContainer = fieldValue.closest('.analysis-field').querySelector('.analysis-field-actions');
-        
-        const isEditing = buttonSpan.textContent === '저장';
-        
-        if (isEditing) {
-            // 저장 모드 -> 보기 모드
-            fieldValue.contentEditable = 'false';
-            fieldValue.classList.remove('editing');
-            
-            // 수정된 데이터 수집 및 저장
-            this.saveFieldData(fieldName, fieldValue.textContent.trim());
-            
-            // 버튼 상태 변경
-            actionContainer.innerHTML = `
-                <button class="btn btn-outline btn-sm field-edit-btn" onclick="editField('${fieldName}')">
-                    <span id="${fieldName}-btn">수정</span>
-                </button>
-            `;
-        } else {
-            // 보기 모드 -> 수정 모드
-            fieldValue.contentEditable = 'true';
-            fieldValue.classList.add('editing');
-            fieldValue.focus();
-            
-            // 저장/취소 버튼으로 변경
-            actionContainer.innerHTML = `
-                <button class="btn btn-sm field-edit-btn save" onclick="editField('${fieldName}')">
-                    <span id="${fieldName}-btn">저장</span>
-                </button>
-                <button class="btn btn-sm field-edit-btn cancel" onclick="cancelEdit('${fieldName}')">
-                    취소
-                </button>
-            `;
-            
-            // 원본 데이터 백업
-            fieldValue.dataset.originalValue = fieldValue.textContent.trim();
-            
-            this.showNotification('수정 모드', `${this.getFieldDisplayName(fieldName)}을(를) 수정할 수 있습니다.`);
-        }
-    }
-    
-    cancelEdit(fieldName) {
-        const fieldValue = document.getElementById(`${fieldName}-value`);
-        const actionContainer = fieldValue.closest('.analysis-field').querySelector('.analysis-field-actions');
-        
-        // 원본 데이터 복원
-        fieldValue.textContent = fieldValue.dataset.originalValue || '';
-        fieldValue.contentEditable = 'false';
-        fieldValue.classList.remove('editing');
-        
-        // 버튼 상태 변경
-        actionContainer.innerHTML = `
-            <button class="btn btn-outline btn-sm field-edit-btn" onclick="editField('${fieldName}')">
-                <span id="${fieldName}-btn">수정</span>
-            </button>
-        `;
-        
-        this.showNotification('취소됨', `${this.getFieldDisplayName(fieldName)} 수정이 취소되었습니다.`);
-    }
-    
-    async saveFieldData(fieldName, value) {
-        if (!this.currentAnalysisData || !this.currentAnalysisData.id) {
-            this.showNotification('저장 오류', '분석 결과 ID가 없습니다.', 'error');
-            return;
-        }
-
-        try {
-            // 로컬 데이터 업데이트
-            if (fieldName === 'summary') {
-                this.currentAnalysisData.summary = value;
-            } else if (fieldName === 'description') {
-                this.currentAnalysisData.description = value;
-            } else if (fieldName === 'location') {
-                this.currentAnalysisData.location = value;
-            } else if (fieldName === 'startdate') {
-                this.currentAnalysisData.startdate = value;
-            } else if (fieldName === 'enddate') {
-                this.currentAnalysisData.enddate = value;
-            }
-
-            // 서버에 저장
-            const response = await fetch(`/api/results/${this.currentAnalysisData.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    field: fieldName,
-                    value: value
-                })
-            });
-
-            if (response.ok) {
-                this.showNotification('저장 완료', `${this.getFieldDisplayName(fieldName)}이(가) 저장되었습니다.`);
-            } else {
-                throw new Error('서버 저장 실패');
-            }
-        } catch (error) {
-            console.error('필드 저장 오류:', error);
-            this.showNotification('저장 오류', '데이터 저장 중 오류가 발생했습니다.', 'error');
-        }
-    }
-    
-    getFieldDisplayName(fieldName) {
-        const fieldNames = {
-            'summary': '요약',
-            'description': '설명',
-            'location': '장소',
-            'startdate': '시작일시',
-            'enddate': '종료일시'
-        };
-        return fieldNames[fieldName] || fieldName;
-    }
-    
-    collectAnalysisData() {
-        const fieldValues = document.querySelectorAll('.analysis-field-value');
-        const updatedData = {};
-        
-        fieldValues.forEach(field => {
-            const fieldName = field.getAttribute('data-field');
-            let value = field.textContent.trim();
-            
-            // 날짜 필드의 경우 ISO 형식으로 변환
-            if (fieldName === 'startdate' || fieldName === 'enddate') {
-                value = this.parseDateTime(value);
-            }
-            
-            updatedData[fieldName] = value;
-        });
-        
-        this.currentAnalysisData = updatedData;
-        return updatedData;
-    }
-    
-    parseDateTime(dateTimeStr) {
-        // "2024-01-22 14:00" 형식을 "2024-01-22T14:00:00" 형식으로 변환
-        const cleanStr = dateTimeStr.replace(/\s+/g, ' ').trim();
-        const parts = cleanStr.split(' ');
-        
-        if (parts.length >= 2) {
-            const datePart = parts[0];
-            const timePart = parts[1];
-            return `${datePart}T${timePart}:00`;
-        }
-        
-        return dateTimeStr;
-    }
-    
-    async generateICS() {
-        if (!this.currentSchedules || this.currentSchedules.length === 0) {
-            this.showNotification('오류', '분석 결과가 없습니다. 먼저 통화 내용을 분석해주세요.', 'error');
-            return;
-        }
-        
-        try {
-            // 새로운 API 구조에 맞춰 schedules 배열로 전송
-            const requestData = {
-                schedules: this.currentSchedules
-            };
-            
-            // API 호출
-            const response = await fetch('/api/generate-ics', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestData)
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'ICS 생성에 실패했습니다.');
-            }
-            
-            const result = await response.json();
-            
-            // ICS 미리보기 표시
-            const previewSection = document.getElementById('ics-preview-section');
-            const previewContent = document.getElementById('ics-preview-content');
-            
-            if (previewSection && previewContent) {
-                previewContent.textContent = result.ics_content;
-                previewSection.style.display = 'block';
-            }
-            
-            // ICS 내용 저장 (다운로드용)
-            this.currentICSContent = result.ics_content;
-            this.currentICSFilename = result.filename;
-            
-            this.showNotification('ICS 생성 완료', 'ICS 파일이 생성되었습니다.');
-            
-        } catch (error) {
-            console.error('ICS 생성 오류:', error);
-            this.showNotification('ICS 생성 오류', `ICS 생성 중 오류가 발생했습니다: ${error.message}`, 'error');
-            
-            // 오류 시 기본 ICS 생성 (첫 번째 일정 사용)
-            const firstSchedule = this.currentSchedules[0];
-            const icsContent = this.createICSContent(firstSchedule);
-            
-            const previewSection = document.getElementById('ics-preview-section');
-            const previewContent = document.getElementById('ics-preview-content');
-            
-            if (previewSection && previewContent) {
-                previewContent.textContent = icsContent;
-                previewSection.style.display = 'block';
-            }
-        }
-    }
-    
-    createICSContent(data) {
-        const now = new Date();
-        const timestamp = now.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-        
-        const startDate = new Date(data.startdate);
-        const endDate = new Date(data.enddate);
-        
-        const formatICSDate = (date) => {
-            return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-        };
-        
-        return `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//MUFI//MUFI Calendar//KO
-BEGIN:VEVENT
-UID:${timestamp}@mufi.com
-DTSTAMP:${timestamp}
-DTSTART:${formatICSDate(startDate)}
-DTEND:${formatICSDate(endDate)}
-SUMMARY:${data.summary}
-DESCRIPTION:${data.description}
-LOCATION:${data.location}
-END:VEVENT
-END:VCALENDAR`;
-    }
-    
-    async downloadICS() {
-        if (!this.currentAnalysisData) {
-            this.showNotification('오류', '다운로드할 ICS 데이터가 없습니다.', 'error');
-            return;
-        }
-        
-        try {
-            // API 호출
-            const response = await fetch('/api/download-ics', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(this.currentAnalysisData)
-            });
-            
-            if (!response.ok) {
-                throw new Error('ICS 다운로드에 실패했습니다.');
-            }
-            
-            // 파일 다운로드
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            
-            // 파일명 추출 (Content-Disposition 헤더에서)
-            const contentDisposition = response.headers.get('Content-Disposition');
-            let filename = 'schedule.ics';
-            if (contentDisposition) {
-                const matches = contentDisposition.match(/filename="([^"]+)"/);
-                if (matches) {
-                    filename = matches[1];
-                }
-            }
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            this.showNotification('다운로드 완료', 'ICS 파일이 다운로드되었습니다.');
-            
-        } catch (error) {
-            console.error('ICS 다운로드 오류:', error);
-            this.showNotification('다운로드 오류', `ICS 다운로드 중 오류가 발생했습니다: ${error.message}`, 'error');
-            
-            // 오류 시 기본 다운로드
-            const icsContent = this.createICSContent(this.currentAnalysisData);
-            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `일정_${new Date().toISOString().split('T')[0]}.ics`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-    }
-    
-    resetAnalysis() {
-        // 5개 칸을 초기 상태로 되돌리기
-        document.getElementById('summary-value').textContent = '분석 후 요약이 여기에 표시됩니다.';
-        document.getElementById('description-value').textContent = '분석 후 상세 설명이 여기에 표시됩니다.';
-        document.getElementById('location-value').textContent = '분석 후 장소가 여기에 표시됩니다.';
-        document.getElementById('startdate-value').textContent = '분석 후 시작일시가 여기에 표시됩니다.';
-        document.getElementById('enddate-value').textContent = '분석 후 종료일시가 여기에 표시됩니다.';
-        
-        // 모든 필드를 readonly 상태로 변경
-        const fieldValues = document.querySelectorAll('.analysis-field-value');
-        fieldValues.forEach(field => {
-            field.classList.add('readonly');
-            field.contentEditable = 'false';
-            field.classList.remove('editing');
-        });
-        
-        // 모든 수정 버튼 비활성화
-        const editButtons = document.querySelectorAll('.field-edit-btn');
-        editButtons.forEach(button => {
-            button.disabled = true;
-        });
-        
-        // 수정 버튼 텍스트 초기화
-        document.getElementById('summary-btn').textContent = '수정';
-        document.getElementById('description-btn').textContent = '수정';
-        document.getElementById('location-btn').textContent = '수정';
-        document.getElementById('startdate-btn').textContent = '수정';
-        document.getElementById('enddate-btn').textContent = '수정';
-        
-        // 액션 버튼들 초기화
-        const actionContainers = document.querySelectorAll('.analysis-field-actions');
-        actionContainers.forEach((container, index) => {
-            const fieldNames = ['summary', 'description', 'location', 'startdate', 'enddate'];
-            const fieldName = fieldNames[index];
-            container.innerHTML = `
-                <button class="btn btn-outline btn-sm field-edit-btn" onclick="editField('${fieldName}')" disabled>
-                    <span id="${fieldName}-btn">수정</span>
-                </button>
-            `;
-        });
-        
-        // ICS 미리보기 숨기기
-        const previewSection = document.getElementById('ics-preview-section');
-        previewSection.style.display = 'none';
-        
-        this.currentAnalysisData = null;
-        this.showNotification('초기화 완료', '분석 결과가 초기화되었습니다.');
-    }
-    
-    openModal(modalId) {
-        const modal = document.getElementById(modalId);
-        modal.classList.add('active');
-    }
-    
-    closeModal(modalId) {
-        const modal = document.getElementById(modalId);
-        modal.classList.remove('active');
-    }
-    
-
-    
-    editAnalysis() {
-        this.showNotification('편집 모드', '분석 결과를 편집할 수 있습니다.');
-    }
-    
-    sendEmail() {
-        const to = document.getElementById('email-to').value;
-        const subject = document.getElementById('email-subject').value;
-        const content = document.getElementById('email-content').value;
-        
-        if (!to || !subject || !content) {
-            this.showNotification('오류', '필수 항목을 모두 입력해주세요.');
-            return;
-        }
-        
-        // 이메일 발송 로직
-        this.showNotification('이메일 발송', '이메일이 성공적으로 발송되었습니다.');
-        
-        // 발송 내역에 추가
-        const emailItem = {
-            id: Date.now(),
-            to,
-            subject,
-            content,
-            timestamp: new Date().toLocaleString(),
-            status: 'sent'
-        };
-        
-        this.emailHistory.push(emailItem);
-        this.updateEmailList();
-        
-        // 폼 초기화
-        document.getElementById('email-form').reset();
-    }
-    
-    previewEmail() {
-        this.showNotification('미리보기', '이메일 미리보기 기능은 준비 중입니다.');
-    }
-    
-    updateEmailList() {
-        const emailList = document.getElementById('email-list');
-        
-        // 요소가 없으면 안전하게 리턴
-        if (!emailList) {
-            return;
-        }
-        
-        const sampleEmails = [
-            {
-                subject: '프로젝트 회의 일정',
-                to: 'john@example.com',
-                timestamp: '2024-01-15 09:30',
-                status: 'sent'
-            },
-            {
-                subject: '클라이언트 미팅 안내',
-                to: 'client@company.com',
-                timestamp: '2024-01-14 16:45',
-                status: 'sent'
-            },
-            {
-                subject: '팀 워크샵 참석 요청',
-                to: 'team@company.com',
-                timestamp: '2024-01-13 11:20',
-                status: 'pending'
-            }
-        ];
-        
-        emailList.innerHTML = sampleEmails.map(email => `
-            <div class="email-item">
-                <div class="email-info">
-                    <h4>${email.subject}</h4>
-                    <p>${email.to} • ${email.timestamp}</p>
-                </div>
-                <span class="email-status ${email.status}">
-                    ${email.status === 'sent' ? '발송완료' : '대기중'}
-                </span>
-            </div>
-        `).join('');
-    }
-    
-    showNotification(title, message) {
-        const notification = document.getElementById('notification');
-        const notificationTitle = document.getElementById('notification-title');
-        const notificationMessage = document.getElementById('notification-message');
-        
-        // 요소가 없으면 안전하게 리턴
-        if (!notification || !notificationTitle || !notificationMessage) {
-            console.log('알림:', title, message);
-            return;
-        }
-        
-        notificationTitle.textContent = title;
-        notificationMessage.textContent = message;
-        
-        notification.classList.add('show');
-        
-        setTimeout(() => {
-            notification.classList.remove('show');
-        }, 3000);
-    }
-    
-    loadSampleData() {
-        // 샘플 연락처 데이터
-        this.contacts = [
-            {
-                id: 1,
-                name: '김대리',
-                email: 'kim@company.com',
-                company: '개발팀'
-            },
-            {
-                id: 2,
-                name: '이과장',
-                email: 'lee@company.com',
-                company: '기획팀'
-            },
-            {
-                id: 3,
-                name: '박팀장',
-                email: 'park@company.com',
-                company: '관리팀'
-            }
-        ];
-        
-        this.updateEmailList();
-        this.renderContacts();
-        this.loadShareData();
-        
-        // 분석 기록 자동 로드
-        this.loadAnalysisHistory();
-    }
-    
-    // 연락처 관리 기능
-    openAddContactModal() {
-        this.openModal('add-contact-modal');
-    }
-    
-    saveContact() {
-        const name = document.getElementById('contact-name').value.trim();
-        const email = document.getElementById('contact-email').value.trim();
-        const company = document.getElementById('contact-company').value.trim();
-        
-        if (!name || !email) {
-            this.showNotification('오류', '이름과 이메일은 필수 입력 항목입니다.');
-            return;
-        }
-        
-        // 이메일 중복 확인
-        if (this.contacts.some(contact => contact.email === email)) {
-            this.showNotification('오류', '이미 등록된 이메일 주소입니다.');
-            return;
-        }
-        
-        const newContact = {
-            id: Date.now(),
-            name,
-            email,
-            company
-        };
-        
-        this.contacts.push(newContact);
-        this.renderContacts();
-        this.closeModal('add-contact-modal');
-        
-        // 폼 초기화
-        document.getElementById('contact-form').reset();
-        
-        this.showNotification('연락처 추가', `${name}님이 연락처에 추가되었습니다.`);
-    }
-    
-    renderContacts() {
-        const container = document.getElementById('contacts-list');
-        
-        // 요소가 없으면 안전하게 리턴
-        if (!container) {
-            return;
-        }
-        
-        if (this.contacts.length === 0) {
-            container.innerHTML = '<div class="empty-state">저장된 연락처가 없습니다.</div>';
-            return;
-        }
-        
-        container.innerHTML = this.contacts.map(contact => `
-            <div class="contact-item">
-                <div class="contact-info">
-                    <div class="contact-name">${contact.name}</div>
-                    <div class="contact-email">${contact.email}</div>
-                    ${contact.company ? `<div class="contact-company">${contact.company}</div>` : ''}
-                </div>
-                <div class="contact-actions-btn">
-                    <button class="btn btn-outline btn-sm" onclick="deleteContact(${contact.id})">삭제</button>
-                </div>
-            </div>
-        `).join('');
-    }
-    
-    deleteContact(contactId) {
-        if (confirm('이 연락처를 삭제하시겠습니까?')) {
-            this.contacts = this.contacts.filter(contact => contact.id !== contactId);
-            this.renderContacts();
-            this.showNotification('연락처 삭제', '연락처가 삭제되었습니다.');
-        }
-    }
-    
-    // 받는 사람 관리 기능
-    openContactModal() {
-        this.renderContactSelectList();
-        this.openModal('contact-select-modal');
-    }
-    
-    renderContactSelectList() {
-        const container = document.getElementById('contact-select-list');
-        
-        // 요소가 없으면 안전하게 리턴
-        if (!container) {
-            return;
-        }
-        
-        if (this.contacts.length === 0) {
-            container.innerHTML = '<div class="empty-state">저장된 연락처가 없습니다. 먼저 연락처를 추가해주세요.</div>';
-            return;
-        }
-        
-        container.innerHTML = this.contacts.map(contact => `
-            <div class="contact-select-item" onclick="toggleContactSelection(${contact.id})">
-                <input type="checkbox" class="contact-select-checkbox" id="contact-${contact.id}">
-                <div class="contact-info">
-                    <div class="contact-name">${contact.name}</div>
-                    <div class="contact-email">${contact.email}</div>
-                    ${contact.company ? `<div class="contact-company">${contact.company}</div>` : ''}
-                </div>
-            </div>
-        `).join('');
-    }
-    
-    toggleContactSelection(contactId) {
-        const checkbox = document.getElementById(`contact-${contactId}`);
-        checkbox.checked = !checkbox.checked;
-        
-        const item = checkbox.closest('.contact-select-item');
-        if (checkbox.checked) {
-            item.classList.add('selected');
-            if (!this.selectedContacts.includes(contactId)) {
-                this.selectedContacts.push(contactId);
-            }
-        } else {
-            item.classList.remove('selected');
-            this.selectedContacts = this.selectedContacts.filter(id => id !== contactId);
-        }
-    }
-    
-    addSelectedContacts() {
-        if (this.selectedContacts.length === 0) {
-            this.showNotification('알림', '선택된 연락처가 없습니다.');
-            return;
-        }
-        
-        this.selectedContacts.forEach(contactId => {
-            const contact = this.contacts.find(c => c.id === contactId);
-            if (contact && !this.selectedRecipients.some(r => r.email === contact.email)) {
-                this.selectedRecipients.push({
-                    name: contact.name,
-                    email: contact.email
-                });
-            }
-        });
-        
-        this.renderRecipients();
-        this.selectedContacts = [];
-        this.closeModal('contact-select-modal');
-        
-        this.showNotification('받는 사람 추가', `받는 사람이 추가되었습니다.`);
-    }
-    
-    renderRecipients() {
-        const container = document.getElementById('recipients-list');
-        
-        // 요소가 없으면 안전하게 리턴
-        if (!container) {
-            return;
-        }
-        
-        container.innerHTML = this.selectedRecipients.map((recipient, index) => `
-            <div class="recipient-tag">
-                <span>${recipient.name} (${recipient.email})</span>
-                <button class="remove-btn" onclick="removeRecipient(${index})">×</button>
-            </div>
-        `).join('');
-    }
-    
-    removeRecipient(index) {
-        this.selectedRecipients.splice(index, 1);
-        this.renderRecipients();
-    }
-    
-    // ICS 선택 기능
-    openICSModal() {
-        this.renderICSList();
-        this.openModal('ics-select-modal');
-    }
-    
-    renderICSList() {
-        const container = document.getElementById('ics-list');
-        
-        // 요소가 없으면 안전하게 리턴
-        if (!container) {
-            return;
-        }
-        
-        if (this.analysisResults.length === 0) {
-            container.innerHTML = '<div class="empty-state">분석된 ICS 데이터가 없습니다. 먼저 통화 내용을 분석해주세요.</div>';
-            return;
-        }
-        
-        container.innerHTML = this.analysisResults.map((result, index) => `
-            <div class="ics-item" onclick="selectICSItem(${index})">
-                <input type="radio" class="ics-radio" name="ics-select" id="ics-${index}">
-                <div class="ics-item-info">
-                    <div class="ics-title">${result.data.summary}</div>
-                    <div class="ics-date">${this.formatDateTime(result.data.startdate)} - ${this.formatDateTime(result.data.enddate)}</div>
-                </div>
-            </div>
-        `).join('');
-    }
-    
-    selectICSItem(index) {
-        // 모든 라디오 버튼 해제
-        document.querySelectorAll('.ics-radio').forEach(radio => radio.checked = false);
-        document.querySelectorAll('.ics-item').forEach(item => item.classList.remove('selected'));
-        
-        // 선택된 항목 표시
-        document.getElementById(`ics-${index}`).checked = true;
-        document.querySelectorAll('.ics-item')[index].classList.add('selected');
-        
-        this.selectedICS = this.analysisResults[index];
-    }
-    
-    selectICSFile() {
-        if (!this.selectedICS) {
-            this.showNotification('알림', 'ICS 파일을 선택해주세요.');
-            return;
-        }
-        
-        const icsInfo = document.getElementById('ics-info');
-        const selectedIcsDiv = document.getElementById('selected-ics');
-        
-        icsInfo.textContent = `${this.selectedICS.data.summary} (${this.formatDateTime(this.selectedICS.data.startdate)})`;
-        selectedIcsDiv.style.display = 'flex';
-        
-        this.closeModal('ics-select-modal');
-        this.showNotification('ICS 선택', 'ICS 파일이 선택되었습니다.');
-    }
-    
-    removeSelectedICS() {
-        this.selectedICS = null;
-        document.getElementById('selected-ics').style.display = 'none';
-        this.showNotification('ICS 제거', 'ICS 파일 선택이 해제되었습니다.');
-    }
-    
-    // 일괄 발송 기능
-    sendBulkEmail() {
-        if (this.selectedRecipients.length === 0) {
-            this.showNotification('오류', '받는 사람을 선택해주세요.');
-            return;
-        }
-        
-        const subject = document.getElementById('email-subject').value.trim();
-        const content = document.getElementById('email-content').value.trim();
-        
-        if (!subject || !content) {
-            this.showNotification('오류', '제목과 내용을 입력해주세요.');
-            return;
-        }
-        
-        // 실제로는 여기서 이메일 발송 API 호출
-        this.showNotification('발송 중', `${this.selectedRecipients.length}명에게 이메일을 발송하고 있습니다...`);
-        
-        setTimeout(() => {
-            this.showNotification('발송 완료', `${this.selectedRecipients.length}명에게 이메일이 성공적으로 발송되었습니다.`);
-            
-            // 폼 초기화
-            document.getElementById('email-form').reset();
-            this.selectedRecipients = [];
-            this.selectedICS = null;
-            this.renderRecipients();
-            document.getElementById('selected-ics').style.display = 'none';
-        }, 2000);
-    }
-    
-    // 일정 공유 관련 기능
-    loadShareData() {
-        // 공유 가능한 일정 (분석 결과 + 기존 일정)
-        this.shareableSchedules = [
-            ...(this.analysisResults || []).map(result => ({
-                id: `analysis_${result.id || Date.now()}`,
-                type: 'analysis',
-                title: result.data.summary,
-                date: result.data.startdate,
-                endDate: result.data.enddate,
-                location: result.data.location,
-                description: result.data.description,
-                data: result.data
-            })),
-            ...(this.schedules || []).map(schedule => ({
-                id: `schedule_${schedule.id}`,
-                type: 'schedule',
-                title: schedule.title,
-                date: `${schedule.date} ${schedule.time}`,
-                description: schedule.description,
-                data: schedule
-            }))
-        ];
-        
-        // 샘플 공유받은 일정 데이터
-        this.receivedSchedules = [
-            {
-                id: 1,
-                title: '마케팅 전략 회의',
-                date: '2024-01-20 15:00',
-                endDate: '2024-01-20 16:30',
-                location: '회의실 A',
-                description: '2024년 마케팅 전략 수립 및 예산 계획',
-                from: '이마케팅 (marketing@company.com)',
-                message: '마케팅 전략 회의에 참석해 주세요. 중요한 안건들이 있습니다.',
-                status: 'pending',
-                receivedAt: '2024-01-15 09:30'
-            },
-            {
-                id: 2,
-                title: '프로젝트 킥오프',
-                date: '2024-01-22 10:00',
-                endDate: '2024-01-22 12:00',
-                location: '대회의실',
-                description: '신규 프로젝트 시작 및 팀 소개',
-                from: '박PM (pm@company.com)',
-                message: '새로운 프로젝트가 시작됩니다. 꼭 참석해 주세요!',
-                status: 'added',
-                receivedAt: '2024-01-14 14:20'
-            },
-            {
-                id: 3,
-                title: '분기별 성과 발표',
-                date: '2024-01-25 14:00',
-                endDate: '2024-01-25 17:00',
-                location: '오디토리움',
-                description: '4분기 성과 발표 및 시상식',
-                from: '최인사 (hr@company.com)',
-                message: '분기별 성과 발표회입니다. 모든 팀원 참석 필수입니다.',
-                status: 'declined',
-                receivedAt: '2024-01-13 11:45'
-            }
-        ];
-        
-        this.renderShareableSchedules();
-        this.renderReceivedSchedules();
-    }
-    
-    renderShareableSchedules() {
-        const container = document.getElementById('share-schedule-list');
-        
-        // 요소가 없으면 안전하게 리턴
-        if (!container) {
-            return;
-        }
-        
-        if (this.shareableSchedules.length === 0) {
-            container.innerHTML = '<div class="empty-state">공유할 수 있는 일정이 없습니다. 먼저 통화 분석을 하거나 일정을 추가해 주세요.</div>';
-            return;
-        }
-        
-        container.innerHTML = this.shareableSchedules.map(schedule => `
-            <div class="share-schedule-item" onclick="toggleShareScheduleSelection('${schedule.id}')">
-                <input type="checkbox" class="share-schedule-checkbox" id="share-schedule-${schedule.id}">
-                <div class="share-schedule-info">
-                    <div class="share-schedule-title">${schedule.title}</div>
-                    <div class="share-schedule-date">${this.formatDateTime(schedule.date)}</div>
-                    <div class="share-schedule-type">${schedule.type === 'analysis' ? '분석 결과' : '일정'}</div>
-                </div>
-            </div>
-        `).join('');
-    }
-    
-    toggleShareScheduleSelection(scheduleId) {
-        const checkbox = document.getElementById(`share-schedule-${scheduleId}`);
-        checkbox.checked = !checkbox.checked;
-        
-        const item = checkbox.closest('.share-schedule-item');
-        if (checkbox.checked) {
-            item.classList.add('selected');
-            if (!this.selectedShareSchedules.includes(scheduleId)) {
-                this.selectedShareSchedules.push(scheduleId);
-            }
-        } else {
-            item.classList.remove('selected');
-            this.selectedShareSchedules = this.selectedShareSchedules.filter(id => id !== scheduleId);
-        }
-    }
-    
-    openShareContactModal() {
-        this.renderShareContactList();
-        this.openModal('share-contact-modal');
-    }
-    
-    renderShareContactList() {
-        const container = document.getElementById('share-contact-list');
-        
-        // 요소가 없으면 안전하게 리턴
-        if (!container) {
-            return;
-        }
-        
-        // 실제로는 API에서 MUFI 사용자 목록을 가져올 것
-        const mufiUsers = [
-            { id: 1, name: '김개발', email: 'dev@company.com', department: '개발팀' },
-            { id: 2, name: '이디자인', email: 'design@company.com', department: '디자인팀' },
-            { id: 3, name: '박기획', email: 'plan@company.com', department: '기획팀' },
-            { id: 4, name: '최마케팅', email: 'marketing@company.com', department: '마케팅팀' },
-            { id: 5, name: '정영업', email: 'sales@company.com', department: '영업팀' }
-        ];
-        
-        container.innerHTML = mufiUsers.map(user => `
-            <div class="share-contact-item" onclick="toggleShareContactSelection(${user.id})">
-                <input type="checkbox" class="contact-select-checkbox" id="share-contact-${user.id}">
-                <div class="contact-info">
-                    <div class="contact-name">${user.name}</div>
-                    <div class="contact-email">${user.email}</div>
-                    <div class="contact-company">${user.department}</div>
-                </div>
-            </div>
-        `).join('');
-    }
-    
-    toggleShareContactSelection(userId) {
-        const checkbox = document.getElementById(`share-contact-${userId}`);
-        checkbox.checked = !checkbox.checked;
-        
-        const item = checkbox.closest('.share-contact-item');
-        if (checkbox.checked) {
-            item.classList.add('selected');
-            if (!this.selectedShareContacts.includes(userId)) {
-                this.selectedShareContacts.push(userId);
-            }
-        } else {
-            item.classList.remove('selected');
-            this.selectedShareContacts = this.selectedShareContacts.filter(id => id !== userId);
-        }
-    }
-    
-    addSelectedShareContacts() {
-        if (this.selectedShareContacts.length === 0) {
-            this.showNotification('알림', '선택된 사용자가 없습니다.');
-            return;
-        }
-        
-        const mufiUsers = [
-            { id: 1, name: '김개발', email: 'dev@company.com' },
-            { id: 2, name: '이디자인', email: 'design@company.com' },
-            { id: 3, name: '박기획', email: 'plan@company.com' },
-            { id: 4, name: '최마케팅', email: 'marketing@company.com' },
-            { id: 5, name: '정영업', email: 'sales@company.com' }
-        ];
-        
-        this.selectedShareContacts.forEach(userId => {
-            const user = mufiUsers.find(u => u.id === userId);
-            if (user && !this.shareRecipients.some(r => r.email === user.email)) {
-                this.shareRecipients.push({
-                    name: user.name,
-                    email: user.email
-                });
-            }
-        });
-        
-        this.renderShareRecipients();
-        this.selectedShareContacts = [];
-        this.closeModal('share-contact-modal');
-        
-        this.showNotification('공유 대상 추가', '공유 대상이 추가되었습니다.');
-    }
-    
-    renderShareRecipients() {
-        const container = document.getElementById('share-recipients-list');
-        
-        // 요소가 없으면 안전하게 리턴
-        if (!container) {
-            return;
-        }
-        
-        container.innerHTML = this.shareRecipients.map((recipient, index) => `
-            <div class="share-recipient-tag">
-                <span>${recipient.name} (${recipient.email})</span>
-                <button class="remove-btn" onclick="removeShareRecipient(${index})">×</button>
-            </div>
-        `).join('');
-    }
-    
-    removeShareRecipient(index) {
-        this.shareRecipients.splice(index, 1);
-        this.renderShareRecipients();
-    }
-    
-    shareSchedule() {
-        if (this.selectedShareSchedules.length === 0) {
-            this.showNotification('오류', '공유할 일정을 선택해주세요.');
-            return;
-        }
-        
-        if (this.shareRecipients.length === 0) {
-            this.showNotification('오류', '공유 대상을 선택해주세요.');
-            return;
-        }
-        
-        const message = document.getElementById('share-message').value.trim();
-        
-        this.showNotification('공유 중', `${this.shareRecipients.length}명에게 ${this.selectedShareSchedules.length}개 일정을 공유하고 있습니다...`);
-        
-        setTimeout(() => {
-            this.showNotification('공유 완료', '일정이 성공적으로 공유되었습니다.');
-            this.clearShareForm();
-        }, 2000);
-    }
-    
-    clearShareForm() {
-        this.selectedShareSchedules = [];
-        this.shareRecipients = [];
-        document.getElementById('share-message').value = '';
-        
-        // 체크박스 초기화
-        document.querySelectorAll('.share-schedule-checkbox').forEach(checkbox => {
-            checkbox.checked = false;
-        });
-        document.querySelectorAll('.share-schedule-item').forEach(item => {
-            item.classList.remove('selected');
-        });
-        
-        this.renderShareRecipients();
-    }
-    
-    // 공유받은 일정 관리
-    renderReceivedSchedules(filter = 'all') {
-        const container = document.getElementById('received-schedules-list');
-        
-        // 요소가 없으면 안전하게 리턴
-        if (!container) {
-            return;
-        }
-        
-        let filteredSchedules = this.receivedSchedules;
-        if (filter !== 'all') {
-            filteredSchedules = this.receivedSchedules.filter(schedule => schedule.status === filter);
-        }
-        
-        if (filteredSchedules.length === 0) {
-            container.innerHTML = '<div class="empty-state">해당하는 공유받은 일정이 없습니다.</div>';
-            return;
-        }
-        
-        container.innerHTML = filteredSchedules.map(schedule => `
-            <div class="received-schedule-item ${schedule.status}" onclick="openReceivedScheduleModal(${schedule.id})">
-                <div class="received-schedule-info">
-                    <div class="received-schedule-title">${schedule.title}</div>
-                    <div class="received-schedule-date">${this.formatDateTime(schedule.date)}</div>
-                    <div class="received-schedule-from">공유자: ${schedule.from}</div>
-                    ${schedule.message ? `<div class="received-schedule-message">"${schedule.message}"</div>` : ''}
-                </div>
-                <div class="received-schedule-actions">
-                    <span class="received-schedule-status ${schedule.status}">
-                        ${this.getStatusText(schedule.status)}
-                    </span>
-                    ${schedule.status === 'pending' ? `
-                        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); addReceivedScheduleToCalendar(${schedule.id})">추가</button>
-                        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); declineReceivedSchedule(${schedule.id})">거절</button>
-                    ` : ''}
-                </div>
-            </div>
-        `).join('');
-    }
-    
-    getStatusText(status) {
-        const statusMap = {
-            'pending': '대기중',
-            'added': '추가됨',
-            'declined': '거절됨'
-        };
-        return statusMap[status] || status;
-    }
-    
-    filterReceivedSchedules(filter) {
-        // 필터 버튼 상태 업데이트
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        document.querySelector(`[data-filter="${filter}"]`).classList.add('active');
-        
-        this.renderReceivedSchedules(filter);
-    }
-    
-    openReceivedScheduleModal(scheduleId) {
-        const schedule = this.receivedSchedules.find(s => s.id === scheduleId);
-        if (!schedule) return;
-        
-        this.currentReceivedSchedule = schedule;
-        
-        const container = document.getElementById('received-schedule-details');
-        container.innerHTML = `
-            <div class="schedule-detail-section">
-                <div class="schedule-detail-title">${schedule.title}</div>
-                
-                <div class="schedule-detail-field">
-                    <div class="schedule-detail-label">📅 일시</div>
-                    <div class="schedule-detail-value">${this.formatDateTime(schedule.date)} - ${this.formatDateTime(schedule.endDate)}</div>
-                </div>
-                
-                <div class="schedule-detail-field">
-                    <div class="schedule-detail-label">📍 장소</div>
-                    <div class="schedule-detail-value">${schedule.location || '장소 없음'}</div>
-                </div>
-                
-                <div class="schedule-detail-field">
-                    <div class="schedule-detail-label">📝 설명</div>
-                    <div class="schedule-detail-value">${schedule.description || '설명 없음'}</div>
-                </div>
-                
-                ${schedule.message ? `
-                    <div class="schedule-detail-message">
-                        <div class="schedule-detail-label">💬 공유 메시지</div>
-                        <div class="schedule-detail-value">"${schedule.message}"</div>
-                        <div class="schedule-detail-from">- ${schedule.from}</div>
-                    </div>
-                ` : ''}
-                
-                <div class="schedule-detail-field">
-                    <div class="schedule-detail-label">⏰ 공유받은 시간</div>
-                    <div class="schedule-detail-value">${schedule.receivedAt}</div>
-                </div>
-            </div>
-        `;
-        
-        this.openModal('received-schedule-modal');
-    }
-    
-    addReceivedScheduleToCalendar(scheduleId) {
-        const schedule = this.receivedSchedules.find(s => s.id === scheduleId);
-        if (!schedule) return;
-        
-        // 일정을 내 캘린더에 추가
-        const newSchedule = {
-            id: Date.now(),
-            title: schedule.title,
-            date: schedule.date.split(' ')[0],
-            time: schedule.date.split(' ')[1],
-            description: schedule.description,
-            location: schedule.location,
-            sharedFrom: schedule.from
-        };
-        
-        this.schedules.push(newSchedule);
-        
-        // 상태 업데이트
-        schedule.status = 'added';
-        
-        this.updateScheduleList();
-        this.renderReceivedSchedules();
-        this.closeModal('received-schedule-modal');
-        
-        this.showNotification('캘린더 추가', `"${schedule.title}" 일정이 캘린더에 추가되었습니다.`);
-    }
-    
-    declineReceivedSchedule(scheduleId) {
-        const schedule = this.receivedSchedules.find(s => s.id === scheduleId);
-        if (!schedule) return;
-        
-        if (confirm('이 일정을 거절하시겠습니까?')) {
-            schedule.status = 'declined';
-            this.renderReceivedSchedules();
-            this.closeModal('received-schedule-modal');
-            
-            this.showNotification('일정 거절', `"${schedule.title}" 일정을 거절했습니다.`);
-        }
-    }
-
-    // 일정 선택 모달 관련 기능
-    openScheduleSelectModal() {
-        this.renderScheduleSelectList();
-        this.openModal('schedule-select-modal');
-    }
-
-    renderScheduleSelectList() {
-        const container = document.getElementById('schedule-select-list');
-        if (!container) return;
-
-        // 실제로는 서버에서 사용자의 일정 목록을 가져와야 함
-        const mySchedules = [
-            {
-                id: 1,
-                title: '프로젝트 회의',
-                datetime: '2024-01-15 14:00',
-                location: '회의실 A',
-                description: '프로젝트 진행 상황 점검 및 향후 계획 논의'
-            },
-            {
-                id: 2,
-                title: '클라이언트 미팅',
-                datetime: '2024-01-16 10:00',
-                location: '온라인',
-                description: '신규 프로젝트 제안서 발표 및 Q&A'
-            },
-            {
-                id: 3,
-                title: '팀 워크샵',
-                datetime: '2024-01-17 09:00',
-                location: '대회의실',
-                description: '팀 빌딩 및 업무 프로세스 개선 워크샵'
-            },
-            {
-                id: 4,
-                title: '월간 보고서 검토',
-                datetime: '2024-01-19 11:00',
-                location: '소회의실',
-                description: '1월 월간 성과 보고서 검토 및 피드백'
-            },
-            {
-                id: 5,
-                title: '고객사 방문',
-                datetime: '2024-01-20 14:30',
-                location: '고객사 본사',
-                description: '분기별 정기 미팅 및 계약 갱신 논의'
-            }
-        ];
-
-        container.innerHTML = mySchedules.map(schedule => `
-            <div class="schedule-select-item" onclick="dashboard.toggleScheduleSelection(${schedule.id})">
-                <div class="schedule-select-content">
-                    <div class="schedule-select-title">${schedule.title}</div>
-                    <div class="schedule-select-subtitle">${schedule.datetime} - ${schedule.location}</div>
-                    <div class="schedule-select-description">${schedule.description}</div>
-                </div>
-                <div class="schedule-select-actions">
-                    <input type="checkbox" class="schedule-select-checkbox" 
-                           value="${schedule.id}" 
-                           data-title="${schedule.title}" 
-                           data-datetime="${schedule.datetime}" 
-                           data-location="${schedule.location}"
-                           ${this.selectedSchedulesForShare.includes(schedule.id) ? 'checked' : ''}>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    toggleScheduleSelection(scheduleId) {
-        const checkbox = document.querySelector(`input[value="${scheduleId}"]`);
-        if (checkbox) {
-            checkbox.checked = !checkbox.checked;
-            
-            if (checkbox.checked) {
-                if (!this.selectedSchedulesForShare.includes(scheduleId)) {
-                    this.selectedSchedulesForShare.push(scheduleId);
-                }
-            } else {
-                this.selectedSchedulesForShare = this.selectedSchedulesForShare.filter(id => id !== scheduleId);
-            }
-            
-            // 선택 상태 시각적 표시
-            const item = checkbox.closest('.schedule-select-item');
-            if (checkbox.checked) {
-                item.classList.add('selected');
-            } else {
-                item.classList.remove('selected');
-            }
-        }
-    }
-
-    addSelectedSchedules() {
-        const selectedSchedules = [];
-        
-        // 체크된 일정들 수집
-        document.querySelectorAll('.schedule-select-checkbox:checked').forEach(checkbox => {
-            selectedSchedules.push({
-                id: parseInt(checkbox.value),
-                title: checkbox.dataset.title,
-                datetime: checkbox.dataset.datetime,
-                location: checkbox.dataset.location
-            });
-        });
-
-        // 선택된 일정들을 화면에 표시
-        this.renderSelectedSchedules(selectedSchedules);
-        
-        // 모달 닫기
-        this.closeModal('schedule-select-modal');
-        
-        if (selectedSchedules.length > 0) {
-            this.showNotification('일정 선택 완료', `${selectedSchedules.length}개의 일정이 선택되었습니다.`);
-        }
-    }
-
-    renderSelectedSchedules(schedules) {
-        const container = document.getElementById('selected-schedules-list');
-        if (!container) return;
-
-        container.innerHTML = schedules.map(schedule => `
-            <div class="selected-schedule-tag">
-                <span>${schedule.title}</span>
-                <button class="remove-btn" onclick="dashboard.removeSelectedSchedule(${schedule.id})" title="제거">×</button>
-            </div>
-        `).join('');
-
-        // 내부 데이터도 업데이트
-        this.selectedShareSchedules = schedules;
-    }
-
-    removeSelectedSchedule(scheduleId) {
-        // 선택된 일정에서 제거
-        this.selectedShareSchedules = this.selectedShareSchedules.filter(s => s.id !== scheduleId);
-        this.selectedSchedulesForShare = this.selectedSchedulesForShare.filter(id => id !== scheduleId);
-        
-        // 화면 업데이트
-        this.renderSelectedSchedules(this.selectedShareSchedules);
-    }
-
-    // 검색 기능
-    searchSchedules() {
-        const searchTerm = document.getElementById('schedule-search').value.toLowerCase();
-        const items = document.querySelectorAll('.schedule-select-item');
-        
-        items.forEach(item => {
-            const title = item.querySelector('.schedule-select-title').textContent.toLowerCase();
-            const description = item.querySelector('.schedule-select-description').textContent.toLowerCase();
-            
-            if (title.includes(searchTerm) || description.includes(searchTerm)) {
-                item.style.display = 'flex';
-            } else {
-                item.style.display = 'none';
-            }
-        });
-    }
-    
-    // 참석자별 일정 그룹화
-    groupSchedulesByParticipant(participants, schedules) {
-        const participantSchedules = {};
-        
-        // 참석자별로 빈 배열 초기화
-        participants.forEach(participant => {
-            participantSchedules[participant.name] = [];
-        });
-        
-        // 일정을 담당자별로 분배
-        schedules.forEach(schedule => {
-            if (schedule.assignees && Array.isArray(schedule.assignees)) {
-                schedule.assignees.forEach(assignee => {
-                    if (participantSchedules[assignee]) {
-                        participantSchedules[assignee].push(schedule);
-                    }
-                });
-            } else {
-                // 담당자가 없으면 첫 번째 참석자에게 할당
-                if (participants.length > 0) {
-                    participantSchedules[participants[0].name].push(schedule);
-                }
-            }
-        });
-        
-        return participantSchedules;
-    }
-    
-    // 참석자별 일정 렌더링
-    renderParticipantSchedules(schedules, participantIndex) {
-        if (!schedules || schedules.length === 0) {
-            return '<p class="no-schedules">담당하는 일정이 없습니다.</p>';
-        }
-        
-        return schedules.map((schedule, scheduleIndex) => `
-            <div class="schedule-card" data-participant="${participantIndex}" data-schedule="${scheduleIndex}">
-                <div class="schedule-header">
-                    <h6 class="schedule-title">${schedule.summary}</h6>
-                </div>
-                
-                <div class="analysis-fields-container">
-                    <div class="analysis-field">
-                        <div class="analysis-field-header">
-                            <label class="analysis-field-label">📝 Summary (요약)</label>
-                            <div class="analysis-field-actions">
-                                <button class="btn btn-outline btn-sm field-edit-btn" onclick="editParticipantScheduleField(${participantIndex}, ${scheduleIndex}, 'summary')">
-                                    <span id="summary-btn-${participantIndex}-${scheduleIndex}">수정</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="analysis-field-value" contenteditable="false" data-field="summary" id="summary-value-${participantIndex}-${scheduleIndex}">${schedule.summary}</div>
-                    </div>
-                    
-                    <div class="analysis-field">
-                        <div class="analysis-field-header">
-                            <label class="analysis-field-label">📄 Description (설명)</label>
-                            <div class="analysis-field-actions">
-                                <button class="btn btn-outline btn-sm field-edit-btn" onclick="editParticipantScheduleField(${participantIndex}, ${scheduleIndex}, 'description')">
-                                    <span id="description-btn-${participantIndex}-${scheduleIndex}">수정</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="analysis-field-value multiline" contenteditable="false" data-field="description" id="description-value-${participantIndex}-${scheduleIndex}">${schedule.description}</div>
-                    </div>
-                    
-                    <div class="analysis-field">
-                        <div class="analysis-field-header">
-                            <label class="analysis-field-label">📍 Location (장소)</label>
-                            <div class="analysis-field-actions">
-                                <button class="btn btn-outline btn-sm field-edit-btn" onclick="editParticipantScheduleField(${participantIndex}, ${scheduleIndex}, 'location')">
-                                    <span id="location-btn-${participantIndex}-${scheduleIndex}">수정</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="analysis-field-value" contenteditable="false" data-field="location" id="location-value-${participantIndex}-${scheduleIndex}">${schedule.location}</div>
-                    </div>
-                    
-                    <div class="analysis-field">
-                        <div class="analysis-field-header">
-                            <label class="analysis-field-label">⏰ Start Date (시작일시)</label>
-                            <div class="analysis-field-actions">
-                                <button class="btn btn-outline btn-sm field-edit-btn" onclick="editParticipantScheduleField(${participantIndex}, ${scheduleIndex}, 'startdate')">
-                                    <span id="startdate-btn-${participantIndex}-${scheduleIndex}">수정</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="analysis-field-value date-field" contenteditable="false" data-field="startdate" id="startdate-value-${participantIndex}-${scheduleIndex}">${this.formatDateTime(schedule.startdate)}</div>
-                    </div>
-                    
-                    <div class="analysis-field">
-                        <div class="analysis-field-header">
-                            <label class="analysis-field-label">⏰ End Date (종료일시)</label>
-                            <div class="analysis-field-actions">
-                                <button class="btn btn-outline btn-sm field-edit-btn" onclick="editParticipantScheduleField(${participantIndex}, ${scheduleIndex}, 'enddate')">
-                                    <span id="enddate-btn-${participantIndex}-${scheduleIndex}">수정</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="analysis-field-value date-field" contenteditable="false" data-field="enddate" id="enddate-value-${participantIndex}-${scheduleIndex}">${this.formatDateTime(schedule.enddate)}</div>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-    }
-    
-    // 참석자 탭 전환
-    switchParticipantTab(index) {
-        // 모든 탭 비활성화
-        document.querySelectorAll('.participant-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        document.querySelectorAll('.participant-panel').forEach(panel => {
-            panel.classList.remove('active');
-        });
-        
-        // 선택된 탭 활성화
-        document.querySelector(`[data-participant="${index}"]`).classList.add('active');
-        document.getElementById(`participant-panel-${index}`).classList.add('active');
-        
-        this.activeParticipantIndex = index;
-    }
-    
-    // 참석자별 일정 필드 수정
-    editParticipantScheduleField(participantIndex, scheduleIndex, fieldName) {
-        const fieldValue = document.getElementById(`${fieldName}-value-${participantIndex}-${scheduleIndex}`);
-        const buttonSpan = document.getElementById(`${fieldName}-btn-${participantIndex}-${scheduleIndex}`);
-        const actionContainer = fieldValue.closest('.analysis-field').querySelector('.analysis-field-actions');
-        
-        const isEditing = buttonSpan.textContent === '저장';
-        
-        if (isEditing) {
-            // 저장 모드 -> 보기 모드
-            fieldValue.contentEditable = 'false';
-            fieldValue.classList.remove('editing');
-            
-            // 수정된 데이터 저장
-            let newValue = fieldValue.textContent.trim();
-            const participant = this.currentParticipants[participantIndex];
-            const scheduleToUpdate = this.participantSchedules[participant.name][scheduleIndex];
-            
-            if (fieldName === 'startdate' || fieldName === 'enddate') {
-                scheduleToUpdate[fieldName] = this.parseDateTime(newValue);
-            } else {
-                scheduleToUpdate[fieldName] = newValue;
-            }
-            
-            // 버튼 상태 변경
-            actionContainer.innerHTML = `
-                <button class="btn btn-outline btn-sm field-edit-btn" onclick="editParticipantScheduleField(${participantIndex}, ${scheduleIndex}, '${fieldName}')">
-                    <span id="${fieldName}-btn-${participantIndex}-${scheduleIndex}">수정</span>
-                </button>
-            `;
-            
-            this.showNotification('저장 완료', `${this.getFieldDisplayName(fieldName)}이(가) 저장되었습니다.`);
-        } else {
-            // 보기 모드 -> 수정 모드
-            fieldValue.contentEditable = 'true';
-            fieldValue.classList.add('editing');
-            fieldValue.focus();
-            
-            // 저장/취소 버튼으로 변경
-            actionContainer.innerHTML = `
-                <button class="btn btn-sm field-edit-btn save" onclick="editParticipantScheduleField(${participantIndex}, ${scheduleIndex}, '${fieldName}')">
-                    <span id="${fieldName}-btn-${participantIndex}-${scheduleIndex}">저장</span>
-                </button>
-                <button class="btn btn-sm field-edit-btn cancel" onclick="cancelParticipantScheduleEdit(${participantIndex}, ${scheduleIndex}, '${fieldName}')">
-                    취소
-                </button>
-            `;
-            
-            // 원본 데이터 백업
-            fieldValue.dataset.originalValue = fieldValue.textContent.trim();
-            
-            this.showNotification('수정 모드', `${this.getFieldDisplayName(fieldName)}을(를) 수정할 수 있습니다.`);
-        }
-    }
-    
-    // 참석자별 일정 필드 수정 취소
-    cancelParticipantScheduleEdit(participantIndex, scheduleIndex, fieldName) {
-        const fieldValue = document.getElementById(`${fieldName}-value-${participantIndex}-${scheduleIndex}`);
-        const actionContainer = fieldValue.closest('.analysis-field').querySelector('.analysis-field-actions');
-        
-        // 원본 데이터 복원
-        fieldValue.textContent = fieldValue.dataset.originalValue || '';
-        fieldValue.contentEditable = 'false';
-        fieldValue.classList.remove('editing');
-        
-        // 버튼 상태 변경
-        actionContainer.innerHTML = `
-            <button class="btn btn-outline btn-sm field-edit-btn" onclick="editParticipantScheduleField(${participantIndex}, ${scheduleIndex}, '${fieldName}')">
-                <span id="${fieldName}-btn-${participantIndex}-${scheduleIndex}">수정</span>
-            </button>
-        `;
-        
-        this.showNotification('취소됨', `${this.getFieldDisplayName(fieldName)} 수정이 취소되었습니다.`);
-    }
-    
-    // 새로운 탭 시스템 메서드들
-    switchScheduleTab(index) {
-        // 모든 탭 비활성화
-        document.querySelectorAll('.schedule-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        document.querySelectorAll('.schedule-panel').forEach(panel => {
-            panel.classList.remove('active');
-        });
-        
-        // 선택된 탭 활성화
-        document.querySelector(`[data-tab="${index}"]`).classList.add('active');
-        document.getElementById(`schedule-panel-${index}`).classList.add('active');
-        
-        this.activeScheduleIndex = index;
-    }
-    
-    editScheduleField(scheduleIndex, fieldName) {
-        const fieldValue = document.getElementById(`${fieldName}-value-${scheduleIndex}`);
-        const buttonSpan = document.getElementById(`${fieldName}-btn-${scheduleIndex}`);
-        const button = buttonSpan.closest('.field-edit-btn');
-        
-        const isEditing = buttonSpan.textContent === '저장';
-        
-        if (isEditing) {
-            // 저장 모드 -> 보기 모드
-            fieldValue.contentEditable = 'false';
-            fieldValue.classList.remove('editing');
-            
-            // 수정된 데이터 저장
-            let newValue = fieldValue.textContent.trim();
-            if (fieldName === 'assignees') {
-                // 담당자는 배열로 변환
-                this.currentSchedules[scheduleIndex][fieldName] = newValue ? newValue.split(',').map(s => s.trim()) : [];
-            } else {
-                this.currentSchedules[scheduleIndex][fieldName] = newValue;
-            }
-            
-            button.innerHTML = `<span id="${fieldName}-btn-${scheduleIndex}">수정</span>`;
-            this.showNotification('저장 완료', `${this.getFieldDisplayName(fieldName)}이(가) 저장되었습니다.`);
-        } else {
-            // 보기 모드 -> 수정 모드
-            fieldValue.contentEditable = 'true';
-            fieldValue.classList.add('editing');
-            fieldValue.focus();
-            
-            // 저장/취소 버튼으로 변경
-            button.innerHTML = `
-                <span id="${fieldName}-btn-${scheduleIndex}">저장</span>
-                <button class="btn btn-outline btn-sm btn-cancel" onclick="cancelScheduleEdit(${scheduleIndex}, '${fieldName}')">취소</button>
-            `;
-        }
-    }
-    
-    cancelScheduleEdit(scheduleIndex, fieldName) {
-        const fieldValue = document.getElementById(`${fieldName}-value-${scheduleIndex}`);
-        const button = document.getElementById(`${fieldName}-btn-${scheduleIndex}`).closest('.field-edit-btn');
-        
-        // 원래 값으로 복원
-        const originalValue = this.currentSchedules[scheduleIndex][fieldName];
-        if (fieldName === 'assignees') {
-            fieldValue.textContent = Array.isArray(originalValue) ? originalValue.join(', ') : originalValue;
-        } else if (fieldName === 'startdate' || fieldName === 'enddate') {
-            fieldValue.textContent = this.formatDateTime(originalValue);
-        } else if (fieldName === 'type') {
-            fieldValue.textContent = this.getTypeDisplayName(originalValue);
-        } else {
-            fieldValue.textContent = originalValue;
-        }
-        
-        // 편집 모드 해제
-        fieldValue.contentEditable = 'false';
-        fieldValue.classList.remove('editing');
-        
-        // 버튼 복원
-        button.innerHTML = `<span id="${fieldName}-btn-${scheduleIndex}">수정</span>`;
-    }
-    
-    displayAnalysisResultFromDB(data) {
-        // 분석 완료 상태로 변경
-        this.setAnalysisState('complete');
-        
-        // 현재 분석 데이터 저장 (DB 형식)
-        this.currentAnalysisData = {
-            id: data.id,
-            type: data.type,
-            source: data.source_name,
-            summary: data.summary || '',
-            description: data.description || '',
-            schedules: data.schedules || [],
-            participants: data.participants || [],
-            actions: data.actions || [],
-            created_at: data.created_at
-        };
-        
-        // UI 업데이트
-        this.updateSummarySection(data.summary || '');
-        this.updateScheduleSection(data.schedules?.[0] || {});
-        this.updateDescriptionSection(data.description || '');
-        this.updateParticipantsSection(data.participants || []);
-        this.updateActionsSection(data.actions || []);
-        
-        // 편집 버튼 활성화
-        this.enableEditButtons();
-    }
-    
-    async loadAnalysisHistory() {
-        try {
-            const response = await fetch('/api/results?limit=20&offset=0');
-            
-            if (!response.ok) {
-                throw new Error('분석 기록을 불러올 수 없습니다.');
-            }
-            
-            const result = await response.json();
-            
-            if (result.success && result.data) {
-                this.renderAnalysisHistory(result.data);
-            }
-            
-        } catch (error) {
-            console.error('분석 기록 로드 오류:', error);
-            this.showNotification('로드 오류', '분석 기록을 불러오는 중 오류가 발생했습니다.', 'error');
-        }
-    }
-    
-    renderAnalysisHistory(historyData) {
-        // 분석 기록을 표시할 UI 영역이 있다면 렌더링
-        const historyContainer = document.getElementById('analysis-history');
-        if (!historyContainer) return;
-        
-        if (historyData.length === 0) {
-            historyContainer.innerHTML = '<div class="empty-state">저장된 분석 기록이 없습니다.</div>';
-            return;
-        }
-        
-        historyContainer.innerHTML = historyData.map(item => `
-            <div class="history-item" onclick="dashboard.loadAnalysisResult('${item.id}')">
-                <div class="history-header">
-                    <h4>${item.source_name}</h4>
-                    <span class="history-date">${this.formatDateTime(item.created_at)}</span>
-                </div>
-                <div class="history-summary">${item.summary || '요약 없음'}</div>
-                <div class="history-meta">
-                    <span class="history-type">${item.type === 'file' ? '파일' : '직접입력'}</span>
-                    <span class="history-participants">${item.participants?.length || 0}명 참석</span>
-                    <span class="history-actions">${item.actions?.length || 0}개 액션</span>
-                </div>
-            </div>
-        `).join('');
-    }
-    
-    async loadAnalysisResult(analysisId) {
-        try {
-            const response = await fetch(`/api/results/${analysisId}`);
-            
-            if (!response.ok) {
-                throw new Error('분석 결과를 불러올 수 없습니다.');
-            }
-            
-            const result = await response.json();
-            
-            if (result.success && result.data) {
-                this.displayAnalysisResultFromDB(result.data);
-                this.showNotification('로드 완료', '저장된 분석 결과를 불러왔습니다.');
-            }
-            
-        } catch (error) {
-            console.error('분석 결과 로드 오류:', error);
-            this.showNotification('로드 오류', '분석 결과를 불러오는 중 오류가 발생했습니다.', 'error');
-        }
-    }
-    
-    async deleteAnalysisResult(analysisId) {
-        if (!confirm('이 분석 결과를 삭제하시겠습니까?')) {
-            return;
-        }
-        
-        try {
-            const response = await fetch(`/api/results/${analysisId}`, {
-                method: 'DELETE'
-            });
-            
-            if (!response.ok) {
-                throw new Error('분석 결과를 삭제할 수 없습니다.');
+                throw new Error(`서버 오류: ${response.status}`);
             }
             
             const result = await response.json();
             
             if (result.success) {
-                this.showNotification('삭제 완료', '분석 결과가 삭제되었습니다.');
-                this.loadAnalysisHistory(); // 목록 새로고침
+                this.displayAnalysisResults(result.data);
+                this.showToast('🎉 텍스트 분석이 완료되었습니다! 결과를 확인해보세요.', 'success');
+            } else {
+                throw new Error(result.message || '분석 중 오류가 발생했습니다.');
             }
             
         } catch (error) {
-            console.error('분석 결과 삭제 오류:', error);
-            this.showNotification('삭제 오류', '분석 결과 삭제 중 오류가 발생했습니다.', 'error');
+            console.error('텍스트 분석 오류:', error);
+            this.showToast(`❌ 분석 실패: ${error.message}`, 'error');
+        } finally {
+            this.state.isAnalyzing = false;
+            this.hideLoading();
+            this.updateButtonStates();
         }
     }
-    
-    async updateActionStatus(actionIndex, isCompleted) {
-        if (!this.currentAnalysisData || !this.currentAnalysisData.id) {
-            return;
+
+    // 분석 결과 표시
+    displayAnalysisResults(data) {
+        console.log('🎯 분석 결과 표시:', data);
+        
+        // 현재 분석 결과를 상태에 저장
+        this.state.currentAnalysisData = data;
+        
+        let html = `
+            <div class="analysis-results-container">
+                <div class="results-header">
+                    <h2><i class="fas fa-chart-line"></i> 분석 결과</h2>
+                </div>
+        `;
+
+
+        
+        // 단체일정과 개인일정 분리
+        const groupSchedules = data.schedules ? data.schedules.filter(s => s.type === 'group' || !s.type) : [];
+        const personalSchedules = data.schedules ? data.schedules.filter(s => s.type === 'personal') : [];
+        
+        // 단체일정
+        if (groupSchedules.length > 0) {
+            html += `
+                <div class="result-section">
+                    <h3><i class="fas fa-users"></i> 단체일정 (${groupSchedules.length}개)</h3>
+                    <div class="schedules-list">
+                        ${groupSchedules.map((schedule, index) => {
+                            const originalIndex = data.schedules.indexOf(schedule);
+                            return `
+                            <div class="schedule-item" data-index="${originalIndex}">
+                                <div class="schedule-header">
+                                    <div class="schedule-title editable-content" onclick="window.dashboard.editScheduleField(this, 'title', ${originalIndex})">
+                                        ${this.escapeHtml(schedule.title || '제목 없음')}
+                                    </div>
+                                    <button class="btn-icon btn-danger" onclick="window.dashboard.removeSchedule(${originalIndex})" title="일정 삭제">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="schedule-details">
+                                    ${schedule.participants && schedule.participants.length > 0 ? `
+                                        <div class="schedule-field">
+                                            <i class="fas fa-users"></i>
+                                            <span class="schedule-participants">
+                                                ${schedule.participants.map(p => typeof p === 'string' ? p : p.name || p).join(', ')}
+                                            </span>
+                                        </div>
+                                    ` : ''}
+                                    ${schedule.location ? `
+                                        <div class="schedule-field">
+                                            <i class="fas fa-map-marker-alt"></i>
+                                            <span class="editable-content" onclick="window.dashboard.editScheduleField(this, 'location', ${originalIndex})">
+                                                ${this.escapeHtml(schedule.location)}
+                                            </span>
+                                        </div>
+                                    ` : ''}
+                                    ${schedule.start_datetime ? `
+                                        <div class="schedule-field">
+                                            <i class="fas fa-clock"></i>
+                                            <span class="editable-content" onclick="window.dashboard.editScheduleField(this, 'start_datetime', ${originalIndex})">
+                                                ${this.formatDateTime(schedule.start_datetime)}
+                                            </span>
+                                        </div>
+                                    ` : ''}
+                                    ${schedule.end_datetime ? `
+                                        <div class="schedule-field">
+                                            <i class="fas fa-clock"></i>
+                                            <span class="editable-content" onclick="window.dashboard.editScheduleField(this, 'end_datetime', ${originalIndex})">
+                                                ${this.formatDateTime(schedule.end_datetime)}
+                                            </span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    <button class="btn btn-secondary btn-small" onclick="window.dashboard.addSchedule('group')">
+                        <i class="fas fa-plus"></i> 단체일정 추가
+                    </button>
+                </div>
+            `;
         }
         
+        // 개인일정
+        if (personalSchedules.length > 0) {
+            html += `
+                <div class="result-section">
+                    <h3><i class="fas fa-user"></i> 개인일정 (${personalSchedules.length}개)</h3>
+                    <div class="schedules-list personal-schedules">
+                        ${personalSchedules.map((schedule, index) => {
+                            const originalIndex = data.schedules.indexOf(schedule);
+                            return `
+                            <div class="schedule-item personal-schedule" data-index="${originalIndex}">
+                                <div class="schedule-header">
+                                    <div class="schedule-title editable-content" onclick="window.dashboard.editScheduleField(this, 'title', ${originalIndex})">
+                                        ${this.escapeHtml(schedule.title || '제목 없음')}
+                                    </div>
+                                    <button class="btn-icon btn-danger" onclick="window.dashboard.removeSchedule(${originalIndex})" title="일정 삭제">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="schedule-details">
+                                    ${schedule.participants && schedule.participants.length > 0 ? `
+                                        <div class="schedule-field">
+                                            <i class="fas fa-user"></i>
+                                            <span class="schedule-participants">
+                                                담당자: ${schedule.participants.map(p => typeof p === 'string' ? p : p.name || p).join(', ')}
+                                            </span>
+                                        </div>
+                                    ` : ''}
+                                    ${schedule.description ? `
+                                        <div class="schedule-field">
+                                            <i class="fas fa-info-circle"></i>
+                                            <span class="editable-content" onclick="window.dashboard.editScheduleField(this, 'description', ${originalIndex})">
+                                                ${this.escapeHtml(schedule.description)}
+                                            </span>
+                                        </div>
+                                    ` : ''}
+                                    ${schedule.start_datetime ? `
+                                        <div class="schedule-field">
+                                            <i class="fas fa-clock"></i>
+                                            <span class="editable-content" onclick="window.dashboard.editScheduleField(this, 'start_datetime', ${originalIndex})">
+                                                ${this.formatDateTime(schedule.start_datetime)}
+                                            </span>
+                                        </div>
+                                    ` : ''}
+                                    ${schedule.end_datetime ? `
+                                        <div class="schedule-field">
+                                            <i class="fas fa-clock"></i>
+                                            <span class="editable-content" onclick="window.dashboard.editScheduleField(this, 'end_datetime', ${originalIndex})">
+                                                ${this.formatDateTime(schedule.end_datetime)}
+                                            </span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    <button class="btn btn-secondary btn-small" onclick="window.dashboard.addSchedule('personal')">
+                        <i class="fas fa-plus"></i> 개인일정 추가
+                    </button>
+                </div>
+            `;
+        }
+        
+
+
+        // 저장 버튼
+        html += `
+                <div class="result-actions">
+                    <button class="btn btn-primary btn-large" onclick="window.dashboard.saveAnalysisResults()">
+                        <i class="fas fa-save"></i> 분석 결과 저장
+                    </button>
+                    <button class="btn btn-secondary" onclick="window.dashboard.clearResults()">
+                        <i class="fas fa-broom"></i> 결과 지우기
+                    </button>
+                </div>
+            </div>
+        `;
+
+        this.elements.analysisResults.innerHTML = html;
+        this.elements.analysisResults.style.display = 'block';
+        
+        // 결과로 스크롤
+        this.elements.analysisResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        console.log('✅ 분석 결과 표시 완료');
+    }
+
+    // ICS 파일 생성 및 다운로드
+    async generateICS() {
         try {
-            const response = await fetch(`/api/results/${this.currentAnalysisData.id}/actions/${actionIndex}?is_completed=${isCompleted}`, {
-                method: 'PATCH'
+            this.showLoading('📅 캘린더 파일을 생성하는 중입니다...');
+            
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedules/generate-ics`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
             });
             
-            if (response.ok) {
-                // 로컬 상태도 업데이트
-                if (this.currentAnalysisData.actions[actionIndex]) {
-                    this.currentAnalysisData.actions[actionIndex].is_completed = isCompleted;
-                }
+            if (!response.ok) {
+                throw new Error('ICS 파일 생성에 실패했습니다.');
             }
             
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `MUFI_일정_${new Date().getTime()}.ics`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            this.showToast('📥 캘린더 파일이 다운로드되었습니다!', 'success');
+            
         } catch (error) {
-            console.error('액션 상태 업데이트 오류:', error);
-            // 에러가 발생해도 UI는 그대로 유지 (낙관적 업데이트)
+            console.error('ICS 생성 오류:', error);
+            this.showToast('❌ 캘린더 파일 생성에 실패했습니다.', 'error');
+        } finally {
+            this.hideLoading();
         }
     }
 
+    // 버튼 상태 업데이트
+    updateButtonStates() {
+        const hasFile = !!this.state.selectedFile;
+        const hasText = this.elements.textContent.value.trim().length > 0;
+        const isAnalyzing = this.state.isAnalyzing;
+
+        // 파일 업로드 버튼
+        this.elements.uploadBtn.disabled = !hasFile || isAnalyzing;
+        
+        // 텍스트 관련 버튼
+        this.elements.analyzeTextBtn.disabled = !hasText || isAnalyzing;
+
+        // 분석 중일 때 버튼 텍스트 변경
+        if (isAnalyzing) {
+            this.elements.uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 분석 중...';
+            this.elements.analyzeTextBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 분석 중...';
+        } else {
+            this.elements.uploadBtn.innerHTML = '<i class="fas fa-search"></i> 분석 시작';
+            this.elements.analyzeTextBtn.innerHTML = '<i class="fas fa-search"></i> 분석 시작';
+        }
+    }
+
+    // 키보드 단축키 처리
+    handleKeydown(e) {
+        // Ctrl + Enter: 분석 실행
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            if (this.elements.textContent.value.trim()) {
+                this.handleTextAnalysis();
+            }
+        }
+        
+        // Escape: 모달 닫기
+        if (e.key === 'Escape') {
+            this.hideModal();
+        }
+    }
+
+    // 로딩 표시
+    showLoading(message = 'AI가 열심히 분석하고 있습니다...') {
+        this.elements.loadingOverlay.querySelector('.loading-text').textContent = message;
+        this.elements.loadingOverlay.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    // 로딩 숨기기
+    hideLoading() {
+        this.elements.loadingOverlay.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    // 모달 표시
+    showModal(title, content) {
+        this.elements.modalTitle.textContent = title;
+        this.elements.modalBody.innerHTML = content;
+        this.elements.modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    // 모달 숨기기
+    hideModal() {
+        this.elements.modal.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    // Toast 알림 표시
+    showToast(message, type = 'info') {
+        // 기존 toast 제거
+        const existingToast = document.querySelector('.toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <div class="toast-content">
+                <div class="toast-message">${message}</div>
+                <button class="toast-close" onclick="this.parentElement.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+                </div>
+        `;
+
+        document.body.appendChild(toast);
+
+        // 애니메이션으로 표시
+        setTimeout(() => toast.classList.add('show'), 100);
+
+        // 자동 제거 (5초 후)
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }
+        }, 5000);
+    }
+
+    // 사용자 정보 로드
+    loadUserInfo() {
+        try {
+            // URL 파라미터에서 사용자 정보 추출
+            const urlParams = new URLSearchParams(window.location.search);
+            const name = decodeURIComponent(urlParams.get('name') || '사용자');
+            const email = decodeURIComponent(urlParams.get('email') || '');
+            const picture = decodeURIComponent(urlParams.get('picture') || '');
+            const token = urlParams.get('token');
+            const userId = urlParams.get('user_id');
+
+            console.log('📋 사용자 정보:', { name, email, picture: !!picture, userId });
+
+            // 사용자 정보를 전역에 저장
+            this.userInfo = { name, email, picture, token, userId };
+
+            // 사용자 이름 표시
+            this.elements.userName.textContent = name;
+            this.elements.userEmail.textContent = email;
+
+            // 프로필 이미지 처리
+            if (picture && picture !== 'undefined') {
+                this.elements.userAvatar.src = picture;
+                this.elements.userAvatar.style.display = 'block';
+                this.elements.userAvatar.nextElementSibling.style.display = 'none';
+            } else {
+                // 이니셜 표시
+                const initials = name.split(' ').map(word => word.charAt(0)).join('').substring(0, 2).toUpperCase();
+                this.elements.userInitials.textContent = initials;
+                this.elements.userAvatar.style.display = 'none';
+                this.elements.userAvatar.nextElementSibling.style.display = 'flex';
+            }
+
+            console.log('✅ 사용자 정보 로드 완료');
+
+        } catch (error) {
+            console.error('❌ 사용자 정보 로드 실패:', error);
+            this.elements.userName.textContent = '사용자';
+            this.elements.userEmail.textContent = '정보 로드 실패';
+        }
+    }
+
+    // 로그아웃
+    logout() {
+        try {
+            console.log('🚪 로그아웃 시작...');
+            
+            // 로컬 저장소 정리
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // 쿠키 정리
+            document.cookie.split(";").forEach(cookie => {
+                const eqPos = cookie.indexOf("=");
+                const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+                document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+            });
+            
+            this.showToast('로그아웃되었습니다.', 'info');
+            
+            // 로그인 페이지로 리다이렉트
+            setTimeout(() => {
+                window.location.href = '/login.html';
+            }, 1000);
+            
+        } catch (error) {
+            console.error('❌ 로그아웃 실패:', error);
+            // 실패해도 강제 리다이렉트
+            window.location.href = '/login.html';
+        }
+    }
+
+    // 인원 관리 - 멤버 추가 모달 표시
+    showAddMemberModal() {
+        const modalContent = `
+            <form id="addMemberForm">
+                <div class="form-group">
+                    <label for="memberName">이름</label>
+                    <input type="text" id="memberName" class="form-control" placeholder="멤버 이름을 입력하세요" required>
+                </div>
+                <div class="form-group">
+                    <label for="memberEmail">이메일</label>
+                    <input type="email" id="memberEmail" class="form-control" placeholder="example@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="memberRole">역할</label>
+                    <select id="memberRole" class="form-control" required>
+                        <option value="">역할을 선택하세요</option>
+                        <option value="프로젝트 매니저">프로젝트 매니저</option>
+                        <option value="개발자">개발자</option>
+                        <option value="디자이너">디자이너</option>
+                        <option value="분석가">분석가</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="memberDepartment">부서</label>
+                    <input type="text" id="memberDepartment" class="form-control" placeholder="부서명 (선택사항)">
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="dashboard.hideModal()">취소</button>
+                    <button type="submit" class="btn btn-primary">추가</button>
+                </div>
+            </form>
+        `;
+
+        this.showModal('새 멤버 추가', modalContent);
+
+        // 폼 이벤트 바인딩
+        const form = document.getElementById('addMemberForm');
+        if (form) {
+            form.addEventListener('submit', (e) => this.handleAddMember(e));
+        }
+    }
+
+    // 인원 관리 - 멤버 추가 처리
+    handleAddMember(e) {
+        e.preventDefault();
+        
+        const name = document.getElementById('memberName').value.trim();
+        const email = document.getElementById('memberEmail').value.trim();
+        const role = document.getElementById('memberRole').value;
+        const department = document.getElementById('memberDepartment').value.trim();
+
+        if (!name || !email || !role) {
+            this.showToast('필수 정보를 모두 입력해주세요.', 'error');
+            return;
+        }
+
+        // 이메일 중복 체크
+        if (this.state.members.some(member => member.email === email)) {
+            this.showToast('이미 등록된 이메일입니다.', 'error');
+            return;
+        }
+
+        // 멤버 추가
+        const newMember = {
+            id: Date.now().toString(),
+            name,
+            email,
+            role,
+            department: department || '미지정',
+            joinDate: new Date().toLocaleDateString('ko-KR'),
+            status: 'active'
+        };
+
+        this.state.members.push(newMember);
+        this.updateMembersDisplay();
+        this.updateRoleCounts();
+        this.hideModal();
+        
+        this.showToast(`${name}님이 팀에 추가되었습니다.`, 'success');
+    }
+
+    // 인원 관리 - 멤버 목록 업데이트
+    updateMembersDisplay() {
+        if (!this.elements.membersContainer) return;
+
+        if (this.state.members.length === 0) {
+            this.elements.membersContainer.innerHTML = `
+                <div class="placeholder-content">
+                    <div class="placeholder-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3>등록된 멤버가 없습니다</h3>
+                    <p>새 멤버를 추가하여 팀을 구성해보세요.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const membersHtml = this.state.members.map(member => `
+            <div class="member-card" data-member-id="${member.id}">
+                <div class="member-avatar">
+                    <div class="avatar-placeholder">
+                        <span>${member.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                </div>
+                <div class="member-info">
+                    <h4>${this.escapeHtml(member.name)}</h4>
+                    <p class="member-email">${this.escapeHtml(member.email)}</p>
+                    <p class="member-role">${this.escapeHtml(member.role)} • ${this.escapeHtml(member.department)}</p>
+                    <p class="member-date">가입일: ${member.joinDate}</p>
+                </div>
+                <div class="member-actions">
+                    <button class="btn-icon" onclick="dashboard.editMember('${member.id}')" title="수정">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon btn-danger" onclick="dashboard.removeMember('${member.id}')" title="삭제">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+        this.elements.membersContainer.innerHTML = membersHtml;
+    }
+
+    // 인원 관리 - 역할별 인원 수 업데이트
+    updateRoleCounts() {
+        const roleCounts = {
+            '프로젝트 매니저': 0,
+            '개발자': 0,
+            '디자이너': 0,
+            '분석가': 0
+        };
+
+        this.state.members.forEach(member => {
+            if (roleCounts.hasOwnProperty(member.role)) {
+                roleCounts[member.role]++;
+            }
+        });
+
+        const roleCards = this.elements.rolesGrid.querySelectorAll('.role-card');
+        roleCards.forEach((card, index) => {
+            const roles = Object.keys(roleCounts);
+            if (index < roles.length) {
+                const role = roles[index];
+                const countElement = card.querySelector('.role-count');
+                if (countElement) {
+                    countElement.textContent = `${roleCounts[role]}명`;
+                }
+            }
+        });
+    }
+
+    // 인원 관리 - 멤버 삭제
+    removeMember(memberId) {
+        const member = this.state.members.find(m => m.id === memberId);
+        if (!member) return;
+
+        if (confirm(`${member.name}님을 팀에서 제거하시겠습니까?`)) {
+            this.state.members = this.state.members.filter(m => m.id !== memberId);
+            this.updateMembersDisplay();
+            this.updateRoleCounts();
+            this.showToast(`${member.name}님이 팀에서 제거되었습니다.`, 'info');
+        }
+    }
+
+    // 분석 결과 편집 관련 메서드들
+    saveAnalysisResults() {
+        if (!this.currentAnalysisData) {
+            this.showToast('저장할 분석 결과가 없습니다.', 'error');
+            return;
+        }
+
+        // 여기서 백엔드 API 호출하여 분석 결과 저장
+        this.showToast('분석 결과가 저장되었습니다.', 'success');
+    }
+
+    editScheduleField(scheduleIndex, field) {
+        const schedule = this.currentAnalysisData.schedules[scheduleIndex];
+        if (!schedule) return;
+
+        const currentValue = schedule[field] || '';
+        const newValue = prompt(`${field} 편집:`, currentValue);
+        
+        if (newValue !== null && newValue !== currentValue) {
+            schedule[field] = newValue;
+            this.displayAnalysisResults(this.currentAnalysisData);
+            this.showToast('일정이 수정되었습니다.', 'success');
+        }
+    }
+
+    removeSchedule(scheduleIndex) {
+        if (confirm('이 일정을 삭제하시겠습니까?')) {
+            this.currentAnalysisData.schedules.splice(scheduleIndex, 1);
+            this.displayAnalysisResults(this.currentAnalysisData);
+            this.showToast('일정이 삭제되었습니다.', 'info');
+        }
+    }
+
+    addSchedule(type = 'group') {
+        const newSchedule = {
+            title: type === 'group' ? '새 단체일정' : '새 개인일정',
+            description: '',
+            location: type === 'group' ? '' : undefined, // 개인일정은 location 불필요
+            start_datetime: new Date().toISOString(),
+            end_datetime: new Date(Date.now() + 3600000).toISOString(), // 1시간 후
+            type: type,
+            participants: type === 'group' ? ['참여자1', '참여자2'] : ['담당자']
+        };
+
+        if (!this.state.currentAnalysisData.schedules) {
+            this.state.currentAnalysisData.schedules = [];
+        }
+        
+        this.state.currentAnalysisData.schedules.push(newSchedule);
+        this.displayAnalysisResults(this.state.currentAnalysisData);
+        
+        const typeName = type === 'group' ? '단체일정' : '개인일정';
+        this.showToast(`새 ${typeName}이 추가되었습니다.`, 'success');
+    }
+
+    editActionField(actionIndex, field) {
+        const action = this.currentAnalysisData.actions[actionIndex];
+        if (!action) return;
+
+        const currentValue = action[field] || '';
+        const newValue = prompt(`${field} 편집:`, currentValue);
+        
+        if (newValue !== null && newValue !== currentValue) {
+            action[field] = newValue;
+            this.displayAnalysisResults(this.currentAnalysisData);
+            this.showToast('개인일정이 수정되었습니다.', 'success');
+        }
+    }
+
+    removeAction(actionIndex) {
+        if (confirm('이 개인일정을 삭제하시겠습니까?')) {
+            this.currentAnalysisData.actions.splice(actionIndex, 1);
+            this.displayAnalysisResults(this.currentAnalysisData);
+            this.showToast('개인일정이 삭제되었습니다.', 'info');
+        }
+    }
+
+    addAction() {
+        const newAction = {
+            assignee: '담당자',
+            description: '새 개인일정',
+            deadline: new Date().toISOString().split('T')[0]
+        };
+
+        if (!this.currentAnalysisData.actions) {
+            this.currentAnalysisData.actions = [];
+        }
+        
+        this.currentAnalysisData.actions.push(newAction);
+        this.displayAnalysisResults(this.currentAnalysisData);
+        this.showToast('새 개인일정이 추가되었습니다.', 'success');
+    }
+
+
+
+    // 인원 관리 - 멤버 편집
+    editMember(memberId) {
+        const member = this.state.members.find(m => m.id === memberId);
+        if (!member) return;
+
+        const modalContent = `
+            <form id="editMemberForm">
+                <div class="form-group">
+                    <label for="editMemberName">이름</label>
+                    <input type="text" id="editMemberName" class="form-control" value="${this.escapeHtml(member.name)}" required>
+                </div>
+                <div class="form-group">
+                    <label for="editMemberEmail">이메일</label>
+                    <input type="email" id="editMemberEmail" class="form-control" value="${this.escapeHtml(member.email)}" required>
+                </div>
+                <div class="form-group">
+                    <label for="editMemberRole">역할</label>
+                    <select id="editMemberRole" class="form-control" required>
+                        <option value="프로젝트 매니저" ${member.role === '프로젝트 매니저' ? 'selected' : ''}>프로젝트 매니저</option>
+                        <option value="개발자" ${member.role === '개발자' ? 'selected' : ''}>개발자</option>
+                        <option value="디자이너" ${member.role === '디자이너' ? 'selected' : ''}>디자이너</option>
+                        <option value="분석가" ${member.role === '분석가' ? 'selected' : ''}>분석가</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editMemberDepartment">부서</label>
+                    <input type="text" id="editMemberDepartment" class="form-control" value="${this.escapeHtml(member.department)}">
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="dashboard.hideModal()">취소</button>
+                    <button type="submit" class="btn btn-primary">수정</button>
+                </div>
+            </form>
+        `;
+
+        this.showModal('멤버 정보 수정', modalContent);
+
+        // 폼 이벤트 바인딩
+        const form = document.getElementById('editMemberForm');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const name = document.getElementById('editMemberName').value.trim();
+                const email = document.getElementById('editMemberEmail').value.trim();
+                const role = document.getElementById('editMemberRole').value;
+                const department = document.getElementById('editMemberDepartment').value.trim();
+
+                if (!name || !email || !role) {
+                    this.showToast('필수 정보를 모두 입력해주세요.', 'error');
+                    return;
+                }
+
+                // 이메일 중복 체크 (본인 제외)
+                if (this.state.members.some(m => m.email === email && m.id !== memberId)) {
+                    this.showToast('이미 등록된 이메일입니다.', 'error');
+                    return;
+                }
+
+                // 멤버 정보 업데이트
+                member.name = name;
+                member.email = email;
+                member.role = role;
+                member.department = department || '미지정';
+
+                this.updateMembersDisplay();
+                this.updateRoleCounts();
+                this.hideModal();
+                
+                this.showToast(`${name}님의 정보가 수정되었습니다.`, 'success');
+            });
+        }
+    }
+
+    // 유틸리티 함수들
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('ko-KR');
+    }
+
+    formatDateTime(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('ko-KR') + ' ' + date.toLocaleTimeString('ko-KR', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+    }
+
+    // 결과 지우기
+    clearResults() {
+        if (confirm('분석 결과를 지우시겠습니까?')) {
+            this.elements.analysisResults.style.display = 'none';
+            this.elements.analysisResults.innerHTML = '';
+            this.state.currentAnalysisData = null;
+        }
+    }
 }
 
-// 대시보드 초기화
-const dashboard = new Dashboard();
+// 대시보드 클래스 정의 완료 - HTML에서 인스턴스 생성
 
-// 전역 함수들 (dashboard 초기화 이후)
-function openModal(modalId) {
-    if (window.dashboard) dashboard.openModal(modalId);
+// AuthManager를 전역에서 접근 가능하도록 설정
+window.authManager = window.authManager || null;
+
+// 추가 CSS 스타일을 동적으로 추가
+const additionalStyles = `
+    /* 분석 결과 메인 컨테이너 */
+    .analysis-results-container {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 32px;
+        margin-top: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+        animation: slideInUp 0.3s ease-out;
+    }
+    
+    .results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 32px;
+        padding-bottom: 24px;
+        border-bottom: 2px solid #f3f4f6;
+    }
+    
+    .results-header h2 {
+        font-size: 28px;
+        font-weight: 700;
+        color: #111827;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .results-header h2 i {
+        color: #3b82f6;
+        font-size: 24px;
+    }
+    
+    .source-info {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+    }
+    
+    .source-type {
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    }
+    
+    .source-name {
+        font-size: 14px;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .result-section {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 24px;
+        transition: all 0.2s ease;
+    }
+    
+    .result-section:hover {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        transform: translateY(-1px);
+    }
+    
+    .result-section h3 {
+        font-size: 20px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .result-section h3 i {
+        color: #3b82f6;
+        font-size: 18px;
+    }
+
+    .result-item {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 16px;
+        transition: all 0.2s ease;
+    }
+
+    .result-item:hover {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        transform: translateY(-1px);
+    }
+
+    /* 요약 섹션 스타일 */
+    .summary-content {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 20px;
+        font-size: 15px;
+        line-height: 1.7;
+        color: #374151;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .summary-content:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    /* 참석자 리스트 스타일 */
+    .participants-list {
+        display: grid;
+        gap: 12px;
+    }
+    
+    .participant-item {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.2s ease;
+    }
+    
+    .participant-item:hover {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .participant-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+    }
+    
+    .participant-name {
+        font-weight: 600;
+        color: #111827;
+        font-size: 15px;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+    
+    .participant-name:hover {
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+    
+    .participant-role {
+        background: #f3f4f6;
+        color: #6b7280;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .participant-role:hover {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    /* 일정 리스트 스타일 */
+    .schedules-list {
+        display: grid;
+        gap: 16px;
+    }
+
+    .schedule-item {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.2s ease;
+        overflow: hidden;
+    }
+
+    .schedule-item:hover {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
+    }
+
+    .schedule-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+
+    .schedule-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #111827;
+        cursor: pointer;
+        padding: 6px 10px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        flex: 1;
+        margin-right: 12px;
+    }
+
+    .schedule-title:hover {
+        background: #f3f4f6;
+        color: #1d4ed8;
+    }
+
+    .schedule-details {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .schedule-details .detail-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        color: #6b7280;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+
+    .schedule-details .detail-item:hover {
+        background: #f9fafb;
+        color: #374151;
+    }
+
+    .schedule-details .detail-item i {
+        width: 16px;
+        color: #9ca3af;
+        font-size: 13px;
+    }
+
+    .schedule-description {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 12px;
+        margin-top: 12px;
+        font-size: 14px;
+        color: #374151;
+        line-height: 1.6;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .schedule-description:hover {
+        border-color: #d1d5db;
+        background: #f3f4f6;
+    }
+
+    /* 개인일정 스타일 */
+    .actions-list {
+        display: grid;
+        gap: 12px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .action-item {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.2s ease;
+    }
+
+    .action-item:hover {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .action-info {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex: 1;
+    }
+
+    .action-text {
+        font-size: 15px;
+        color: #111827;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+
+    .action-text:hover {
+        background: #f3f4f6;
+        color: #1d4ed8;
+    }
+
+    .action-assignee {
+        font-size: 13px;
+        color: #6b7280;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+
+    .action-assignee:hover {
+        background: #f9fafb;
+        color: #374151;
+    }
+
+    .action-due-date {
+        background: #fef3c7;
+        color: #d97706;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .action-due-date:hover {
+        background: #fde68a;
+        color: #b45309;
+    }
+
+    /* 버튼 스타일 개선 */
+    .schedule-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 2px solid #f3f4f6;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: white;
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #1d4ed8, #1e40af);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px rgba(59, 130, 246, 0.4);
+    }
+
+    .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
+    }
+
+    .btn-secondary:hover {
+        background: #e5e7eb;
+        color: #111827;
+        transform: translateY(-1px);
+    }
+
+    .btn-icon {
+        padding: 8px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: none;
+        color: #6b7280;
+    }
+
+    .btn-icon:hover {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .btn-danger {
+        color: #dc2626;
+    }
+
+    .btn-danger:hover {
+        background: #fef2f2;
+        color: #b91c1c;
+    }
+
+    .toast-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .toast-message {
+        flex: 1;
+        font-size: 14px;
+        color: #333333;
+        font-weight: 500;
+    }
+
+    .toast-close {
+        background: none;
+        border: none;
+        color: #999999;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+    }
+
+    .toast-close:hover {
+        background: rgba(0, 0, 0, 0.1);
+        color: #666666;
+    }
+
+    .placeholder-content {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666666;
+    }
+
+    .placeholder-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+
+    .placeholder-content h3 {
+        font-size: 20px;
+        margin-bottom: 8px;
+        color: #333333;
+    }
+
+    .placeholder-content p {
+        font-size: 14px;
+        color: #888888;
+    }
+
+    /* 인원 관리 스타일 */
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .members-container {
+        display: grid;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .member-card {
+        display: flex;
+        align-items: center;
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+        padding: 16px;
+        transition: all 0.2s ease;
+    }
+
+    .member-card:hover {
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        transform: translateY(-1px);
+    }
+
+    .member-avatar {
+        margin-right: 16px;
+    }
+
+    .member-avatar .avatar-placeholder {
+        width: 48px;
+        height: 48px;
+        background: #2563eb;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 18px;
+    }
+
+    .member-info {
+        flex: 1;
+    }
+
+    .member-info h4 {
+        margin: 0 0 4px 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #000000;
+    }
+
+    .member-email {
+        margin: 0 0 4px 0;
+        font-size: 14px;
+        color: #666666;
+    }
+
+    .member-role {
+        margin: 0 0 4px 0;
+        font-size: 13px;
+        color: #888888;
+    }
+
+    .member-date {
+        margin: 0;
+        font-size: 12px;
+        color: #999999;
+    }
+
+    .member-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .btn-icon {
+        background: none;
+        border: none;
+        padding: 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: #666666;
+    }
+
+    .btn-icon:hover {
+        background: rgba(0, 0, 0, 0.1);
+        color: #333333;
+    }
+
+    .btn-icon.btn-danger:hover {
+        background: rgba(220, 53, 69, 0.1);
+        color: #dc3545;
+    }
+
+    .roles-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+
+    .role-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+        padding: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
+    }
+
+    .role-card:hover {
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .role-info h4 {
+        margin: 0 0 4px 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: #000000;
+    }
+
+    .role-info p {
+        margin: 0;
+        font-size: 12px;
+        color: #888888;
+        line-height: 1.4;
+    }
+
+    .role-count {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2563eb;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: #333333;
+        font-size: 14px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: border-color 0.2s ease;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .modal-buttons {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    /* 분석 결과 편집 스타일 */
+    .result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 16px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+    }
+
+    .result-title {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+        color: #000000;
+    }
+
+    .result-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .result-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .result-item-header h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #000000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .btn-edit {
+        background: none;
+        border: none;
+        color: #666666;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        font-size: 12px;
+    }
+
+    .btn-edit:hover {
+        background: rgba(0, 0, 0, 0.1);
+        color: #333333;
+    }
+
+    .editable-field {
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 3px;
+        transition: background-color 0.2s ease;
+        display: inline-block;
+    }
+
+    .editable-field:hover {
+        background-color: rgba(37, 99, 235, 0.1);
+        color: #2563eb;
+    }
+
+    .editable-title {
+        cursor: pointer;
+        transition: color 0.2s ease;
+    }
+
+    .editable-title:hover {
+        color: #2563eb;
+    }
+
+    .schedule-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+    }
+
+    .schedule-card-header h4 {
+        margin: 0;
+        flex: 1;
+    }
+
+    .btn-small {
+        padding: 4px 6px;
+        font-size: 11px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-left: 8px;
+    }
+
+    .btn-small.btn-danger {
+        background: rgba(220, 53, 69, 0.1);
+        color: #dc3545;
+    }
+
+    .btn-small.btn-danger:hover {
+        background: #dc3545;
+        color: white;
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 12px;
+        margin-top: 12px;
+    }
+
+    .participants-list li,
+    .actions-list li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .participants-list li:last-child,
+    .actions-list li:last-child {
+        border-bottom: none;
+    }
+
+    /* 파일 정보 표시 개선 */
+    .file-info {
+        margin-top: 16px;
+        display: none;
+    }
+
+    .file-info.show {
+        display: block;
+    }
+
+    .file-preview {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border: 1px solid #0ea5e9;
+        border-radius: 8px;
+        gap: 12px;
+    }
+
+    .file-preview .file-icon {
+        color: #0ea5e9;
+        font-size: 18px;
+        min-width: 18px;
+    }
+
+    .file-preview .file-details {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .file-preview .file-name {
+        font-weight: 500;
+        color: #0c4a6e;
+        font-size: 14px;
+    }
+
+    .file-preview .file-size {
+        font-size: 12px;
+        color: #0369a1;
+        opacity: 0.8;
+    }
+
+    .file-preview .btn-remove {
+        background: none;
+        border: none;
+        color: #ef4444;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .file-preview .btn-remove:hover {
+        background: rgba(239, 68, 68, 0.1);
+        color: #dc2626;
+    }
+        background: none;
+        border: none;
+        color: #999999;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        font-size: 12px;
+    }
+
+    .btn-remove:hover {
+        background: rgba(220, 53, 69, 0.1);
+        color: #dc3545;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+`;
+
+// 스타일 추가
+const styleElement = document.createElement('style');
+styleElement.textContent = additionalStyles;
+document.head.appendChild(styleElement);
+
+class MUFIDashboardExtension extends MUFIDashboard {
+    // 분석 결과를 저장하는 함수
+    async saveAnalysisResults() {
+        console.log('💾 분석 결과 저장 중...');
+        console.log('현재 분석 데이터:', this.state.currentAnalysisData);
+        
+        if (!this.state.currentAnalysisData) {
+            this.showToast('❌ 저장할 분석 결과가 없습니다.', 'error');
+            return;
+        }
+
+        try {
+            this.showLoading('💾 분석 결과를 저장하는 중입니다...');
+            
+
+            
+            const saveData = {
+                // GPT 새 구조를 백엔드 호환 구조로 변환
+                user_id: (() => {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    return urlParams.get('user_id') || this.userInfo?.user_id || 'anonymous';
+                })(),
+                source_name: this.state.currentAnalysisData.source_name || '통화 분석',
+                source_type: this.state.currentAnalysisData.source_type || 'text',
+                summary: '', // 더이상 사용하지 않음
+                schedules: [
+                    ...(this.state.currentAnalysisData.group || this.state.currentAnalysisData.schedules || []),
+                    ...(this.state.currentAnalysisData.personal || [])
+                ],
+                participants: [], // 각 일정별로 participants가 포함되어 있으므로 전체 participants는 빈 배열
+                actions: []  // personal 데이터는 schedules에 포함시켰으므로 빈 배열
+            };
+
+            
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/save`, {
+                method: 'POST',
+                body: JSON.stringify(saveData)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`저장 오류: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showToast('✅ 분석 결과가 성공적으로 저장되었습니다!', 'success');
+            } else {
+                throw new Error(result.message || '저장에 실패했습니다.');
+            }
+            
+        } catch (error) {
+            console.error('저장 오류:', error);
+            this.showToast(`❌ 저장 실패: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    // 일정 편집 함수들
+
+    editScheduleField(element, field, index) {
+        const schedule = this.state.currentAnalysisData.schedules[index];
+        const currentValue = schedule[field] || '';
+        
+        let input;
+        if (field === 'start_datetime' || field === 'end_datetime') {
+            input = document.createElement('input');
+            input.type = 'datetime-local';
+            input.value = currentValue ? new Date(currentValue).toISOString().slice(0, 16) : '';
+        } else {
+            input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentValue;
+        }
+        
+        input.className = 'inline-edit-input';
+        input.style.width = '100%';
+        input.style.padding = '4px 8px';
+        input.style.border = '2px solid #2563eb';
+        input.style.borderRadius = '4px';
+        input.style.fontSize = 'inherit';
+        input.style.fontFamily = 'inherit';
+        
+        const saveEdit = () => {
+            const newValue = input.value.trim();
+            if (field === 'start_datetime' || field === 'end_datetime') {
+                schedule[field] = newValue ? new Date(newValue).toISOString() : null;
+                element.textContent = newValue ? this.formatDateTime(schedule[field]) : '';
+            } else {
+                schedule[field] = newValue;
+                element.textContent = newValue;
+            }
+        };
+        
+        input.addEventListener('blur', saveEdit);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveEdit();
+            } else if (e.key === 'Escape') {
+                element.textContent = field === 'start_datetime' || field === 'end_datetime' 
+                    ? this.formatDateTime(currentValue) : currentValue;
+            }
+        });
+        
+        element.textContent = '';
+        element.appendChild(input);
+        input.focus();
+    }
+
+    editActionField(element, field, index) {
+        const action = this.state.currentAnalysisData.actions[index];
+        const currentValue = action[field] || '';
+        
+        let input;
+        if (field === 'due_date') {
+            input = document.createElement('input');
+            input.type = 'date';
+            input.value = currentValue;
+        } else {
+            input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentValue;
+        }
+        
+        input.className = 'inline-edit-input';
+        input.style.width = '100%';
+        input.style.padding = '4px 8px';
+        input.style.border = '2px solid #2563eb';
+        input.style.borderRadius = '4px';
+        input.style.fontSize = 'inherit';
+        input.style.fontFamily = 'inherit';
+        
+        const saveEdit = () => {
+            const newValue = input.value.trim();
+            action[field] = newValue;
+            element.textContent = field === 'due_date' ? this.formatDate(newValue) : newValue;
+        };
+        
+        input.addEventListener('blur', saveEdit);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveEdit();
+            } else if (e.key === 'Escape') {
+                element.textContent = field === 'due_date' ? this.formatDate(currentValue) : currentValue;
+            }
+        });
+        
+        element.textContent = '';
+        element.appendChild(input);
+        input.focus();
+    }
+
+
+
+    // 항목 제거 함수들
+    removeSchedule(index) {
+        if (confirm('이 일정을 삭제하시겠습니까?')) {
+            this.state.currentAnalysisData.schedules.splice(index, 1);
+            this.displayAnalysisResults(this.state.currentAnalysisData);
+        }
+    }
+
+    removeAction(index) {
+        if (confirm('이 개인일정을 삭제하시겠습니까?')) {
+            this.state.currentAnalysisData.actions.splice(index, 1);
+            this.displayAnalysisResults(this.state.currentAnalysisData);
+        }
+    }
+
+    // 항목 추가 함수들 (addSchedule은 위에서 이미 정의됨)
+
+    addAction() {
+        if (!this.state.currentAnalysisData.actions) {
+            this.state.currentAnalysisData.actions = [];
+        }
+        const newAction = {
+            text: '새 개인일정',
+            assignee: '',
+            due_date: null
+        };
+        this.state.currentAnalysisData.actions.push(newAction);
+        this.displayAnalysisResults(this.state.currentAnalysisData);
+    }
+
+    // 결과 지우기
+    clearResults() {
+        if (confirm('분석 결과를 지우시겠습니까?')) {
+            this.elements.analysisResults.style.display = 'none';
+            this.elements.analysisResults.innerHTML = '';
+            this.state.currentAnalysisData = null;
+        }
+    }
+
+    // 일정 관리 기능들
+    async loadSchedules() {
+        console.log('🚀 [START] loadSchedules 함수 시작!');
+        
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            let userId = urlParams.get('user_id') || this.userInfo?.user_id;
+            
+            // 테스트용: DB에 실제 데이터가 있는 user_id 사용
+            if (!userId) {
+                userId = '5e462ae0-b67a-4f47-942f-81485142bb51'; // 테스트용 고정 ID
+                console.log('🔍 [DEBUG] 테스트용 고정 user_id 사용:', userId);
+            }
+            
+            console.log('🔍 [DEBUG] loadSchedules 호출됨');
+            console.log('🔍 [DEBUG] URL params:', Object.fromEntries(urlParams));
+            console.log('🔍 [DEBUG] this.userInfo:', this.userInfo);
+            console.log('🔍 [DEBUG] 최종 userId:', userId);
+            
+            if (!userId) {
+                this.showToast('사용자 정보를 찾을 수 없습니다.', 'error');
+                return;
+            }
+
+            this.showLoading('일정 목록을 불러오는 중...');
+
+            const apiUrl = `${this.config.apiBaseUrl}/api/schedules?user_id=${userId}`;
+            console.log('🔍 [DEBUG] API 호출 URL:', apiUrl);
+
+            const response = await this.authenticatedFetch(apiUrl);
+            
+            console.log('🔍 [DEBUG] API 응답 상태:', response.status);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.log('🔍 [DEBUG] API 에러 응답:', errorText);
+                throw new Error(`일정 목록 조회 실패: ${response.status} - ${errorText}`);
+            }
+
+            const data = await response.json();
+            console.log('🔍 [DEBUG] API 응답 데이터:', data);
+            
+            if (data.success) {
+                console.log('🔍 [DEBUG] 조회된 일정 개수:', data.schedules?.length || 0);
+                console.log('🔍 [DEBUG] 그룹화된 통화 개수:', data.grouped_schedules?.length || 0);
+                
+                // 그룹화된 데이터가 있으면 사용, 없으면 기존 방식
+                if (data.grouped_schedules && data.grouped_schedules.length > 0) {
+                    this.displayGroupedSchedules(data.grouped_schedules);
+                } else {
+                    this.displaySchedules(data.schedules);
+                }
+                
+                // 디버그 정보가 있으면 콘솔에 출력
+                if (data.debug_info) {
+                    console.log('🔍 [DEBUG] 서버 디버그 정보:', data.debug_info);
+                }
+            } else {
+                throw new Error(data.message || '일정 목록 조회에 실패했습니다.');
+            }
+
+        } catch (error) {
+            console.error('❌ [ERROR] 일정 목록 로드 오류:', error);
+            this.showToast(`일정 목록 로드 실패: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    displaySchedules(schedules) {
+        const scheduleSection = document.getElementById('schedules-section');
+        if (!scheduleSection) {
+            console.error('❌ schedules-section 엘리먼트를 찾을 수 없습니다!');
+            return;
+        }
+        console.log('✅ schedules-section 엘리먼트 찾음:', scheduleSection);
+
+        if (!schedules || schedules.length === 0) {
+            scheduleSection.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📅</div>
+                    <h3>저장된 일정이 없습니다</h3>
+                    <p>통화 분석을 통해 일정을 생성해보세요.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const schedulesHtml = schedules.map(schedule => this.createScheduleCard(schedule)).join('');
+        
+        scheduleSection.innerHTML = `
+            <div class="schedules-header">
+                <h2><i class="fas fa-calendar-alt"></i> 일정 관리</h2>
+                <div class="schedules-stats">
+                    <span class="stat-item">
+                        <i class="fas fa-list"></i>
+                        총 ${schedules.length}개 일정
+                    </span>
+                </div>
+            </div>
+            <div class="schedules-grid">
+                ${schedulesHtml}
+            </div>
+        `;
+    }
+
+    displayGroupedSchedules(groupedSchedules) {
+        const scheduleSection = document.getElementById('schedules-section');
+        if (!scheduleSection) {
+            console.error('❌ schedules-section 엘리먼트를 찾을 수 없습니다!');
+            return;
+        }
+        console.log('✅ schedules-section 엘리먼트 찾음:', scheduleSection);
+
+        if (!groupedSchedules || groupedSchedules.length === 0) {
+            scheduleSection.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📅</div>
+                    <h3>저장된 일정이 없습니다</h3>
+                    <p>통화 분석을 통해 일정을 생성해보세요.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const totalSchedules = groupedSchedules.reduce((sum, group) => sum + group.schedule_count, 0);
+        const groupsHtml = groupedSchedules.map(group => this.createScheduleGroup(group)).join('');
+        
+        scheduleSection.innerHTML = `
+            <div class="schedules-header">
+                <h2><i class="fas fa-calendar-alt"></i> 일정 관리</h2>
+                <div class="schedules-stats">
+                    <span class="stat-item">
+                        <i class="fas fa-phone"></i>
+                        총 ${groupedSchedules.length}개 통화
+                    </span>
+                    <span class="stat-item">
+                        <i class="fas fa-list"></i>
+                        총 ${totalSchedules}개 일정
+                    </span>
+                </div>
+            </div>
+            <div class="schedules-groups">
+                ${groupsHtml}
+            </div>
+        `;
+    }
+
+    createScheduleGroup(group) {
+        const createdDate = group.created_at ? new Date(group.created_at).toLocaleDateString('ko-KR') : '';
+        const createdTime = group.created_at ? new Date(group.created_at).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'}) : '';
+        
+        const schedulesHtml = group.schedules.map(schedule => this.createScheduleCard(schedule)).join('');
+        
+        return `
+            <div class="schedule-group" data-analysis-id="${group.analysis_id}">
+                <div class="schedule-group-header" onclick="window.dashboard.toggleScheduleGroup('${group.analysis_id}')">
+                    <div class="group-info">
+                        <div class="group-title">
+                            <i class="fas fa-phone"></i>
+                            <span class="group-name">${this.escapeHtml(group.source_name)}</span>
+                            <span class="group-count">(${group.schedule_count}개 일정)</span>
+                        </div>
+                        <div class="group-date">${createdDate} ${createdTime}</div>
+                    </div>
+                    <div class="group-toggle">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+                
+                <div class="schedule-group-content expanded">
+                    <div class="schedules-grid">
+                        ${schedulesHtml}
+                    </div>
+                    <div class="group-actions">
+                        <button class="btn btn-outline btn-small" onclick="window.dashboard.downloadGroupICS('${group.analysis_id}')">
+                            <i class="fas fa-download"></i>
+                            전체 ICS 다운로드
+                        </button>
+                        <button class="btn btn-outline btn-small" onclick="window.dashboard.shareGroup('${group.analysis_id}')">
+                            <i class="fas fa-share-alt"></i>
+                            그룹 공유
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    toggleScheduleGroup(analysisId) {
+        const groupElement = document.querySelector(`[data-analysis-id="${analysisId}"]`);
+        if (!groupElement) return;
+
+        const content = groupElement.querySelector('.schedule-group-content');
+        const toggle = groupElement.querySelector('.group-toggle i');
+        
+        if (content.classList.contains('expanded')) {
+            content.classList.remove('expanded');
+            toggle.classList.remove('fa-chevron-down');
+            toggle.classList.add('fa-chevron-right');
+        } else {
+            content.classList.add('expanded');
+            toggle.classList.remove('fa-chevron-right');
+            toggle.classList.add('fa-chevron-down');
+        }
+    }
+
+    async downloadGroupICS(analysisId) {
+        try {
+            this.showLoading('그룹 ICS 파일을 준비하는 중...');
+            // TODO: 그룹 전체 ICS 다운로드 구현
+            this.showToast('그룹 ICS 다운로드 기능 구현 예정입니다.', 'info');
+        } catch (error) {
+            console.error('그룹 ICS 다운로드 오류:', error);
+            this.showToast(`그룹 ICS 다운로드 실패: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async shareGroup(analysisId) {
+        try {
+            this.showLoading('그룹 공유 링크를 생성하는 중...');
+            // TODO: 그룹 공유 기능 구현
+            this.showToast('그룹 공유 기능 구현 예정입니다.', 'info');
+        } catch (error) {
+            console.error('그룹 공유 오류:', error);
+            this.showToast(`그룹 공유 실패: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    createScheduleCard(schedule) {
+        console.log('🔍 [DEBUG] createScheduleCard 호출 - schedule:', schedule);
+        
+        // participants 처리 (문자열 배열 또는 객체 배열 대응)
+        let participantsText = '참여자 없음';
+        if (schedule.participants && Array.isArray(schedule.participants) && schedule.participants.length > 0) {
+            // 문자열 배열인 경우
+            if (typeof schedule.participants[0] === 'string') {
+                participantsText = schedule.participants.join(', ');
+            } 
+            // 객체 배열인 경우 (name 필드 추출)
+            else if (typeof schedule.participants[0] === 'object' && schedule.participants[0].name) {
+                participantsText = schedule.participants.map(p => p.name).join(', ');
+            }
+        }
+        
+        const typeIcon = schedule.type === 'group' ? '👥' : '👤';
+        const typeText = schedule.type === 'group' ? '단체일정' : '개인일정';
+        
+        const startDate = schedule.start_datetime ? new Date(schedule.start_datetime).toLocaleDateString('ko-KR') : '';
+        const startTime = schedule.start_datetime ? new Date(schedule.start_datetime).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'}) : '';
+
+        console.log('🔍 [DEBUG] 카드 생성 정보 - 제목:', schedule.title, '참여자:', participantsText, '타입:', typeText);
+
+        return `
+            <div class="schedule-card" data-schedule-id="${schedule.id}">
+                <div class="schedule-card-header">
+                    <div class="schedule-type">
+                        <span class="type-icon">${typeIcon}</span>
+                        <span class="type-text">${typeText}</span>
+                    </div>
+                    <div class="schedule-date">
+                        ${startDate} ${startTime}
+                    </div>
+                </div>
+                
+                <div class="schedule-card-body">
+                    <h3 class="schedule-title">${this.escapeHtml(schedule.title)}</h3>
+                    <p class="schedule-description">${this.escapeHtml(schedule.description || '')}</p>
+                    
+                    <div class="schedule-details">
+                        ${schedule.location && schedule.location !== '미정' ? `
+                            <div class="schedule-detail">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span>${this.escapeHtml(schedule.location)}</span>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="schedule-detail">
+                            <i class="fas fa-users"></i>
+                            <span>${this.escapeHtml(participantsText)}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="schedule-card-actions">
+                    <button class="btn btn-primary btn-small" onclick="window.dashboard.downloadScheduleICS('${schedule.id}')">
+                        <i class="fas fa-calendar-plus"></i>
+                        캘린더 추가
+                    </button>
+                    <button class="btn btn-secondary btn-small" onclick="window.dashboard.sendScheduleEmail('${schedule.id}')">
+                        <i class="fas fa-envelope"></i>
+                        메일 보내기
+                    </button>
+                    <button class="btn btn-outline btn-small" onclick="window.dashboard.shareSchedule('${schedule.id}')">
+                        <i class="fas fa-share-alt"></i>
+                        공유
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // 일정 ICS 다운로드
+    async downloadScheduleICS(scheduleId) {
+        try {
+            this.showLoading('ICS 파일을 준비하는 중...');
+
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedules/${scheduleId}/download-ics`);
+            
+            if (!response.ok) {
+                throw new Error(`ICS 다운로드 실패: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.download_url) {
+                // 다운로드 URL이 있으면 새 탭에서 열기
+                window.open(data.download_url, '_blank');
+                this.showToast('ICS 파일이 다운로드되었습니다.', 'success');
+            } else if (data.ics_content) {
+                // ICS 콘텐츠가 있으면 다운로드
+                this.downloadFile(data.ics_content, data.filename || 'schedule.ics', 'text/calendar');
+                this.showToast('ICS 파일이 다운로드되었습니다.', 'success');
+            }
+
+        } catch (error) {
+            console.error('ICS 다운로드 오류:', error);
+            this.showToast(`ICS 다운로드 실패: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    // 일정 이메일 발송
+    async sendScheduleEmail(scheduleId) {
+        const emails = prompt('이메일 주소를 입력하세요 (여러 개인 경우 쉼표로 구분):');
+        if (!emails) return;
+
+        try {
+            this.showLoading('이메일을 발송하는 중...');
+
+            const emailList = emails.split(',').map(email => email.trim()).filter(email => email);
+            
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedules/${scheduleId}/send-email`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    recipients: emailList
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`이메일 발송 실패: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showToast(data.message, 'success');
+            } else {
+                throw new Error(data.message || '이메일 발송에 실패했습니다.');
+            }
+
+        } catch (error) {
+            console.error('이메일 발송 오류:', error);
+            this.showToast(`이메일 발송 실패: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    // 일정 공유
+    async shareSchedule(scheduleId) {
+        try {
+            this.showLoading('공유 링크를 생성하는 중...');
+
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedules/${scheduleId}/share`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    share_type: 'link'
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`공유 실패: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.success) {
+                // 공유 링크를 클립보드에 복사
+                const shareUrl = `${window.location.origin}${data.share_url}`;
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    this.showToast('공유 링크가 클립보드에 복사되었습니다!', 'success');
+                }).catch(() => {
+                    this.showToast(`공유 링크: ${shareUrl}`, 'info');
+                });
+            } else {
+                throw new Error(data.message || '공유에 실패했습니다.');
+            }
+
+        } catch (error) {
+            console.error('공유 오류:', error);
+            this.showToast(`공유 실패: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    // 파일 다운로드 헬퍼 함수
+    downloadFile(content, filename, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }
 }
 
-function closeModal(modalId) {
-    if (window.dashboard) dashboard.closeModal(modalId);
-}
-
-
-
-function editField(fieldName) {
-    if (window.dashboard) dashboard.editField(fieldName);
-}
-
-function cancelEdit(fieldName) {
-    if (window.dashboard) dashboard.cancelEdit(fieldName);
-}
-
-function generateICS() {
-    if (window.dashboard) dashboard.generateICS();
-}
-
-function downloadICS() {
-    if (window.dashboard) dashboard.downloadICS();
-}
-
-function resetAnalysis() {
-    if (window.dashboard) dashboard.resetAnalysis();
-}
-
-function sendEmail() {
-    if (window.dashboard) dashboard.sendEmail();
-}
-
-function previewEmail() {
-    if (window.dashboard) dashboard.previewEmail();
-}
-
-function startAnalysis() {
-    if (window.dashboard) dashboard.analyzeText();
-}
-
-function clearFile() {
-    if (window.dashboard) dashboard.clearFile();
-}
-
-function clearAllInput() {
-    if (window.dashboard) dashboard.clearAllInput();
-}
-
-// 이메일 관련 전역 함수들
-function openAddContactModal() {
-    if (window.dashboard) dashboard.openAddContactModal();
-}
-
-function saveContact() {
-    if (window.dashboard) dashboard.saveContact();
-}
-
-function deleteContact(contactId) {
-    if (window.dashboard) dashboard.deleteContact(contactId);
-}
-
-function openContactModal() {
-    if (window.dashboard) dashboard.openContactModal();
-}
-
-function toggleContactSelection(contactId) {
-    if (window.dashboard) dashboard.toggleContactSelection(contactId);
-}
-
-function addSelectedContacts() {
-    if (window.dashboard) dashboard.addSelectedContacts();
-}
-
-function removeRecipient(index) {
-    if (window.dashboard) dashboard.removeRecipient(index);
-}
-
-function openICSModal() {
-    if (window.dashboard) dashboard.openICSModal();
-}
-
-function selectICSItem(index) {
-    if (window.dashboard) dashboard.selectICSItem(index);
-}
-
-function selectICSFile() {
-    if (window.dashboard) dashboard.selectICSFile();
-}
-
-function removeSelectedICS() {
-    if (window.dashboard) dashboard.removeSelectedICS();
-}
-
-function sendBulkEmail() {
-    if (window.dashboard) dashboard.sendBulkEmail();
-}
-
-// 일정 공유 관련 전역 함수들
-function toggleShareScheduleSelection(scheduleId) {
-    if (window.dashboard) dashboard.toggleShareScheduleSelection(scheduleId);
-}
-
-function openShareContactModal() {
-    if (window.dashboard) dashboard.openShareContactModal();
-}
-
-function toggleShareContactSelection(userId) {
-    if (window.dashboard) dashboard.toggleShareContactSelection(userId);
-}
-
-function addSelectedShareContacts() {
-    if (window.dashboard) dashboard.addSelectedShareContacts();
-}
-
-function removeShareRecipient(index) {
-    if (window.dashboard) dashboard.removeShareRecipient(index);
-}
-
-function shareSchedule() {
-    if (window.dashboard) dashboard.shareSchedule();
-}
-
-function clearShareForm() {
-    if (window.dashboard) dashboard.clearShareForm();
-}
-
-function filterReceivedSchedules(filter) {
-    if (window.dashboard) dashboard.filterReceivedSchedules(filter);
-}
-
-function openReceivedScheduleModal(scheduleId) {
-    if (window.dashboard) dashboard.openReceivedScheduleModal(scheduleId);
-}
-
-function addReceivedScheduleToCalendar(scheduleId) {
-    if (window.dashboard) dashboard.addReceivedScheduleToCalendar(scheduleId);
-}
-
-function declineReceivedSchedule(scheduleId) {
-    if (window.dashboard) dashboard.declineReceivedSchedule(scheduleId);
-}
-
-// 일정 선택 모달 관련 전역 함수들
-function openScheduleSelectModal() {
-    if (window.dashboard) dashboard.openScheduleSelectModal();
-}
-
-function toggleScheduleSelection(scheduleId) {
-    if (window.dashboard) dashboard.toggleScheduleSelection(scheduleId);
-}
-
-function addSelectedSchedules() {
-    if (window.dashboard) dashboard.addSelectedSchedules();
-}
-
-function removeSelectedSchedule(scheduleId) {
-    if (window.dashboard) dashboard.removeSelectedSchedule(scheduleId);
-}
-
-function searchSchedules() {
-    if (window.dashboard) dashboard.searchSchedules();
-}
-
-// 새로운 탭 시스템 관련 전역 함수들
-function switchScheduleTab(index) {
-    if (window.dashboard) dashboard.switchScheduleTab(index);
-}
-
-function editScheduleField(scheduleIndex, fieldName) {
-    if (window.dashboard) dashboard.editScheduleField(scheduleIndex, fieldName);
-}
-
-function cancelScheduleEdit(scheduleIndex, fieldName) {
-    if (window.dashboard) dashboard.cancelScheduleEdit(scheduleIndex, fieldName);
-}
-
-// 참석자별 탭 시스템 관련 전역 함수들
-function switchParticipantTab(index) {
-    if (window.dashboard) dashboard.switchParticipantTab(index);
-}
-
-function editParticipantScheduleField(participantIndex, scheduleIndex, fieldName) {
-    if (window.dashboard) dashboard.editParticipantScheduleField(participantIndex, scheduleIndex, fieldName);
-}
-
-function cancelParticipantScheduleEdit(participantIndex, scheduleIndex, fieldName) {
-    if (window.dashboard) dashboard.cancelParticipantScheduleEdit(participantIndex, scheduleIndex, fieldName);
-}
-
-// 액션 아이템 토글 함수
-function toggleActionComplete(actionIndex) {
-    if (window.dashboard) dashboard.toggleActionComplete(actionIndex);
-}
-
-// window 객체에 dashboard 할당 (전역 접근용)
-window.dashboard = dashboard; 
+export default MUFIDashboardExtension;
