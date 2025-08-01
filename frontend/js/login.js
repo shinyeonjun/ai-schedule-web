@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const passwordInput = document.getElementById('password');
     const rememberCheckbox = document.getElementById('remember');
     const loginBtn = document.querySelector('.login-btn');
+    const googleLoginBtn = document.getElementById('google-login-btn');
     const notificationContainer = document.getElementById('notification-container');
     
     // 폼 검증 규칙
@@ -59,11 +60,10 @@ document.addEventListener('DOMContentLoaded', function() {
         passwordInput.addEventListener('input', () => validateField('password'));
         passwordInput.addEventListener('blur', () => validateField('password'));
 
-        // 소셜 로그인 버튼들
-        const socialButtons = document.querySelectorAll('.social-btn');
-        socialButtons.forEach(btn => {
-            btn.addEventListener('click', handleSocialLogin);
-        });
+        // Google 로그인 버튼
+        if (googleLoginBtn) {
+            googleLoginBtn.addEventListener('click', handleGoogleLogin);
+        }
         
         // 비밀번호 찾기 링크
         const forgotLink = document.querySelector('.forgot-link');
@@ -287,12 +287,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function handleSocialLogin(e) {
+    async function handleGoogleLogin(e) {
         e.preventDefault();
         
-        const provider = e.target.textContent.includes('Google') ? 'google' : 'microsoft';
-        
-        showNotification('소셜 로그인', `${provider} 로그인 기능은 준비 중입니다.`, 'info');
+        try {
+            // 버튼 비활성화
+            googleLoginBtn.disabled = true;
+            googleLoginBtn.textContent = 'Google 로그인 중...';
+            
+            // Google 로그인 시작
+            const authResult = await window.authManager.startGoogleLogin();
+            
+            if (authResult.success) {
+                // 로그인 성공
+                showNotification('로그인 성공!', `${authResult.user.name}님, 환영합니다!`, 'success');
+                
+                // 대시보드로 리디렉션
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 1000);
+            }
+            
+        } catch (error) {
+            console.error('Google 로그인 에러:', error);
+            showNotification('로그인 오류', error.message || 'Google 로그인 중 오류가 발생했습니다.', 'error');
+            
+            // 버튼 복원
+            googleLoginBtn.disabled = false;
+            googleLoginBtn.textContent = 'Google로 로그인';
+        }
     }
     
     function handleForgotPassword(e) {

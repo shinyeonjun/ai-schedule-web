@@ -9,13 +9,7 @@ from dotenv import load_dotenv
 # 환경 변수 로드
 load_dotenv()
 
-from models.analysis import (
-    AnalysisResultData, 
-    AnalysisResult, 
-    ScheduleData, 
-    ParticipantData, 
-    ActionData
-)
+# from models.analysis import AnalysisResult  # 나중에 필요시 추가
 
 class DatabaseService:
     def __init__(self):
@@ -301,4 +295,95 @@ class DatabaseService:
             
         except Exception as e:
             print(f"분석 필드 업데이트 오류: {str(e)}")
+            return False
+
+    # User management methods
+    def create_user(self, google_id: str, email: str, name: str, picture: Optional[str] = None) -> Dict[str, Any]:
+        """Create a new user in the database"""
+        try:
+            user_data = {
+                "id": str(uuid4()),
+                "google_id": google_id,
+                "email": email,
+                "name": name,
+                "picture": picture,
+                "created_at": datetime.utcnow().isoformat(),
+                "last_login_at": datetime.utcnow().isoformat()
+            }
+            
+            result = self.client.table("users").insert(user_data).execute()
+            
+            if result.data:
+                return result.data[0]
+            else:
+                raise Exception("Failed to create user")
+                
+        except Exception as e:
+            print(f"사용자 생성 오류: {str(e)}")
+            raise Exception(f"사용자 생성 중 오류가 발생했습니다: {str(e)}")
+
+    def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get user by user ID"""
+        try:
+            result = self.client.table("users").select("*").eq("id", user_id).execute()
+            
+            if result.data:
+                return result.data[0]
+            return None
+                
+        except Exception as e:
+            print(f"사용자 조회 오류: {str(e)}")
+            return None
+
+    def get_user_by_google_id(self, google_id: str) -> Optional[Dict[str, Any]]:
+        """Get user by Google ID"""
+        try:
+            result = self.client.table("users").select("*").eq("google_id", google_id).execute()
+            
+            if result.data:
+                return result.data[0]
+            return None
+                
+        except Exception as e:
+            print(f"Google ID로 사용자 조회 오류: {str(e)}")
+            return None
+
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get user by email"""
+        try:
+            result = self.client.table("users").select("*").eq("email", email).execute()
+            
+            if result.data:
+                return result.data[0]
+            return None
+                
+        except Exception as e:
+            print(f"이메일로 사용자 조회 오류: {str(e)}")
+            return None
+
+    def update_user(self, user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update user information"""
+        try:
+            # Add updated_at timestamp
+            data["updated_at"] = datetime.utcnow().isoformat()
+            
+            result = self.client.table("users").update(data).eq("id", user_id).execute()
+            
+            if result.data:
+                return result.data[0]
+            else:
+                raise Exception("Failed to update user")
+                
+        except Exception as e:
+            print(f"사용자 업데이트 오류: {str(e)}")
+            raise Exception(f"사용자 업데이트 중 오류가 발생했습니다: {str(e)}")
+
+    def delete_user(self, user_id: str) -> bool:
+        """Delete user from database"""
+        try:
+            result = self.client.table("users").delete().eq("id", user_id).execute()
+            return len(result.data) > 0
+                
+        except Exception as e:
+            print(f"사용자 삭제 오류: {str(e)}")
             return False 

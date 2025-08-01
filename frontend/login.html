@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/login.css">
+    <script type="module" src="js/modules/auth.js"></script>
 </head>
 <body>
     <div class="login-container">
@@ -130,11 +131,11 @@
                 
                 <!-- 소셜 로그인 -->
                 <div class="social-login">
-                    <button type="button" class="btn btn-outline social-btn">
+                    <button type="button" class="btn btn-outline social-btn" id="google-login-btn">
                         Google로 로그인
                     </button>
-                    <button type="button" class="btn btn-outline social-btn">
-                        Microsoft로 로그인
+                    <button type="button" class="btn btn-outline social-btn" disabled>
+                        Microsoft로 로그인 (준비중)
                     </button>
                 </div>
                 
@@ -155,6 +156,8 @@
     <!-- 알림 컨테이너 -->
     <div id="notification-container" class="notification-container"></div>
     
+    <!-- Auth Manager 로드 -->
+    <script src="js/modules/auth.js"></script>
     <script src="js/login.js"></script>
 </body>
 </html> 

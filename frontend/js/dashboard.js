@@ -17,16 +17,97 @@ class Dashboard {
         this.currentReceivedSchedule = null;
         this.selectedSchedulesForShare = [];
         this.currentFile = null; // 현재 업로드된 파일 저장
+        this.authManager = window.authManager; // AuthManager 인스턴스
         
         this.init();
     }
     
-    init() {
+    async init() {
+        // 사용자 인증 확인
+        await this.checkAuthentication();
+        
         this.setupEventListeners();
         this.loadSampleData();
         
         // 기본 입력 방식을 파일 업로드로 설정
         this.switchInputMethod('file');
+    }
+
+    /**
+     * 사용자 인증 상태 확인
+     */
+    async checkAuthentication() {
+        try {
+            if (!this.authManager) {
+                // AuthManager 로드 대기
+                await this.loadAuthManager();
+            }
+
+            const authStatus = await this.authManager.checkAuthStatus();
+            
+            if (!authStatus.authenticated) {
+                // 인증되지 않은 사용자는 로그인 페이지로 리디렉션
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // 사용자 정보 표시
+            this.displayUserInfo(authStatus.user);
+            
+        } catch (error) {
+            console.error('Authentication check failed:', error);
+            window.location.href = 'login.html';
+        }
+    }
+
+    /**
+     * AuthManager 로드
+     */
+    async loadAuthManager() {
+        // AuthManager가 없으면 동적으로 로드
+        if (!window.authManager) {
+            try {
+                const authModule = await import('./modules/auth.js');
+                // AuthManager는 이미 전역으로 설정됨
+                this.authManager = window.authManager;
+            } catch (error) {
+                console.error('Failed to load AuthManager:', error);
+                throw error;
+            }
+        } else {
+            this.authManager = window.authManager;
+        }
+    }
+
+    /**
+     * 사용자 정보 표시
+     */
+    displayUserInfo(user) {
+        // 헤더에 사용자 정보 표시
+        const headerActions = document.querySelector('.header-actions');
+        if (headerActions && user) {
+            headerActions.innerHTML = `
+                <div class="user-info">
+                    ${user.picture ? `<img src="${user.picture}" alt="${user.name}" class="user-avatar">` : ''}
+                    <span class="user-name">${user.name}</span>
+                </div>
+                <button class="btn btn-outline" onclick="dashboard.handleLogout()">로그아웃</button>
+            `;
+        }
+    }
+
+    /**
+     * 로그아웃 처리
+     */
+    async handleLogout() {
+        try {
+            await this.authManager.logout();
+            window.location.href = 'login.html';
+        } catch (error) {
+            console.error('Logout failed:', error);
+            // 실패해도 로그인 페이지로 이동
+            window.location.href = 'login.html';
+        }
     }
     
     setupEventListeners() {

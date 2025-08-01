@@ -185,7 +185,7 @@ async def analyze_file(file: UploadFile = File(...)):
             # 임시 파일 삭제
             if os.path.exists(temp_file_path):
                 os.unlink(temp_file_path)
-        
+            
     except HTTPException:
         raise
     except Exception as e:
@@ -256,7 +256,7 @@ async def get_analysis_result(analysis_id: str):
             success=True,
             message="분석 결과를 조회했습니다.",
             data=result
-        )
+            )
         
     except HTTPException:
         raise
@@ -314,7 +314,7 @@ async def update_analysis_field(analysis_id: str, request: dict):
             return {"success": True, "message": f"{field} 필드가 업데이트되었습니다."}
         else:
             raise HTTPException(status_code=404, detail="분석 결과를 찾을 수 없습니다.")
-            
+        
     except HTTPException:
         raise
     except Exception as e:
