@@ -396,53 +396,57 @@ async def save_analysis_results(request: SaveAnalysisRequestNew):
                     print(f"❌ 개인일정 {idx+1} 저장 중 오류: {str(personal_error)}")
                     continue
         
-        # ICS 파일 생성 및 스토리지 저장
-        if saved_schedule_data:
+        # ICS 파일 생성 및 스토리지 저장 (DB 기반)
+        if saved_schedule_ids:
             try:
-                print(f"📅 ICS 파일 생성 중... ({len(saved_schedule_data)}개 일정)")
-                
-                # ICS 파일 내용 생성
-                ics_content = ics_service.generate_ics_content(
-                    schedules=saved_schedule_data,
-                    title=f"MUFI 분석 일정 - {request.source_name}"
-                )
+                print(f"📅 DB 기반 ICS 파일 생성 중... ({len(saved_schedule_ids)}개 일정)")
                 
                 # 각 스케줄에 ICS 파일 경로 업데이트
                 for schedule_id in saved_schedule_ids:
                     try:
-                        # 개별 스케줄 ICS 파일 저장
-                        individual_schedule = [s for s in saved_schedule_data if str(s["id"]) == schedule_id]
-                        if individual_schedule:
-                            individual_ics = ics_service.generate_ics_content(
-                                schedules=individual_schedule,
-                                title=individual_schedule[0]["title"]
-                            )
+                        # DB에서 저장된 스케줄 데이터 다시 조회 (정확한 날짜/시간 포함)
+                        db_result = supabase.table("schedules").select("*").eq("id", schedule_id).execute()
+                        
+                        if not db_result.data:
+                            print(f"❌ 스케줄 {schedule_id} DB 조회 실패")
+                            continue
                             
-                            # 스토리지에 저장 (analysis_id 포함)
-                            filename = f"schedule_{schedule_id}"
-                            save_result = await ics_service.save_ics_to_storage(
-                                ics_content=individual_ics,
-                                filename=filename,
-                                user_id=request.user_id,
-                                analysis_id=analysis_id  # 통화별 폴더 구분
-                            )
-                            file_path = save_result.get("public_url", "")
-                            
-                            # 스케줄 테이블에 ICS 파일 경로 업데이트
-                            supabase.table("schedules").update({
-                                "ics_file_path": file_path
-                            }).eq("id", schedule_id).execute()
-                            
-                            print(f"📁 스케줄 {schedule_id} ICS 파일 저장: {file_path}")
-                    
+                        db_schedule = db_result.data[0]
+                        print(f"📊 DB에서 조회한 스케줄 {schedule_id}: {db_schedule.get('title')}")
+                        print(f"📅 시작시간: {db_schedule.get('start_datetime')}")
+                        print(f"📅 종료시간: {db_schedule.get('end_datetime')}")
+                        
+                        # DB 기반 개별 스케줄 ICS 파일 생성
+                        individual_ics = ics_service.generate_ics_content(
+                            schedules=[db_schedule],  # DB에서 조회한 정확한 데이터 사용
+                            title=db_schedule.get("title", "일정")
+                        )
+                        
+                        # 스토리지에 저장 (analysis_id 포함)
+                        filename = f"schedule_{schedule_id}"
+                        save_result = await ics_service.save_ics_to_storage(
+                            ics_content=individual_ics,
+                            filename=filename,
+                            user_id=request.user_id,
+                            analysis_id=analysis_id  # 통화별 폴더 구분
+                        )
+                        file_path = save_result.get("public_url", "")
+                        
+                        # 스케줄 테이블에 ICS 파일 경로 업데이트
+                        supabase.table("schedules").update({
+                            "ics_file_path": file_path
+                        }).eq("id", schedule_id).execute()
+                        
+                        print(f"📁 스케줄 {schedule_id} ICS 파일 저장 성공: {file_path}")
+                
                     except Exception as ics_error:
                         print(f"❌ 스케줄 {schedule_id} ICS 저장 오류: {str(ics_error)}")
                         continue
                         
-                print(f"✅ 모든 ICS 파일 생성 완료!")
+                print(f"✅ 모든 DB 기반 ICS 파일 생성 완료!")
                 
             except Exception as ics_error:
-                print(f"⚠️ ICS 파일 생성 오류 (DB 저장은 성공): {str(ics_error)}")
+                print(f"⚠️ DB 기반 ICS 파일 생성 오류 (DB 저장은 성공): {str(ics_error)}")
                 # ICS 생성 실패해도 DB 저장은 성공했으므로 계속 진행
         
         if saved_schedule_ids:

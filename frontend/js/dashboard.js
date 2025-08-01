@@ -109,6 +109,9 @@ class MUFIDashboard {
             console.log('👤 사용자 정보 로드 시작...');
             this.loadUserInfo();
             
+            // Google 인증 콜백 체크
+            this.checkGoogleAuthCallback();
+            
             this.hideLoading();
             console.log('🎉 대시보드 초기화 완료!');
             this.showToast('환영합니다! MUFI에서 통화 내용을 스마트하게 분석해보세요 🚀', 'info');
@@ -749,11 +752,23 @@ class MUFIDashboard {
             const picture = decodeURIComponent(urlParams.get('picture') || '');
             const token = urlParams.get('token');
             const userId = urlParams.get('user_id');
+            const googleCredentials = urlParams.get('google_credentials');
 
-            console.log('📋 사용자 정보:', { name, email, picture: !!picture, userId });
+            console.log('📋 사용자 정보:', { name, email, picture: !!picture, userId, hasGoogleCredentials: !!googleCredentials });
+
+            // Google Calendar 토큰이 있으면 저장
+            if (googleCredentials) {
+                try {
+                    const credentials = JSON.parse(decodeURIComponent(googleCredentials));
+                    this.setGoogleCredentials(credentials);
+                    console.log('✅ Google Calendar 토큰 자동 저장 완료');
+                } catch (error) {
+                    console.error('❌ Google Calendar 토큰 파싱 실패:', error);
+                }
+            }
 
             // 사용자 정보를 전역에 저장
-            this.userInfo = { name, email, picture, token, userId };
+            this.userInfo = { name, email, picture, token, user_id: userId };
 
             // 사용자 이름 표시
             this.elements.userName.textContent = name;
@@ -770,6 +785,12 @@ class MUFIDashboard {
                 this.elements.userInitials.textContent = initials;
                 this.elements.userAvatar.style.display = 'none';
                 this.elements.userAvatar.nextElementSibling.style.display = 'flex';
+            }
+
+            // URL 파라미터 정리 (토큰 정보 제거)
+            if (urlParams.has('google_credentials') || urlParams.has('token')) {
+                const cleanUrl = window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
             }
 
             console.log('✅ 사용자 정보 로드 완료');
@@ -2540,7 +2561,7 @@ class MUFIDashboardExtension extends MUFIDashboard {
                 </div>
                 
                 <div class="schedule-card-actions">
-                    <button class="btn btn-primary btn-small" onclick="window.dashboard.downloadScheduleICS('${schedule.id}')">
+                    <button class="btn btn-primary btn-small" onclick="window.dashboard.addToGoogleCalendar('${schedule.id}')">
                         <i class="fas fa-calendar-plus"></i>
                         캘린더 추가
                     </button>
@@ -2557,34 +2578,160 @@ class MUFIDashboardExtension extends MUFIDashboard {
         `;
     }
 
-    // 일정 ICS 다운로드
-    async downloadScheduleICS(scheduleId) {
+    // Google Calendar에 일정 추가
+    async addToGoogleCalendar(scheduleId) {
         try {
-            this.showLoading('ICS 파일을 준비하는 중...');
-
-            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedules/${scheduleId}/download-ics`);
+            // Google 인증 상태 확인
+            const googleCredentials = this.getGoogleCredentials();
             
-            if (!response.ok) {
-                throw new Error(`ICS 다운로드 실패: ${response.status}`);
+            if (!googleCredentials) {
+                // Google 인증이 필요한 경우
+                this.showGoogleAuthModal(scheduleId);
+                return;
             }
 
-            const data = await response.json();
+            this.showLoading('Google Calendar에 추가하는 중...');
+
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/calendar/add-schedule`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    schedule_id: scheduleId,
+                    user_id: this.userInfo.user_id,
+                    google_credentials: googleCredentials,
+                    calendar_id: 'primary'  // 기본 캘린더
+                })
+            });
             
-            if (data.download_url) {
-                // 다운로드 URL이 있으면 새 탭에서 열기
-                window.open(data.download_url, '_blank');
-                this.showToast('ICS 파일이 다운로드되었습니다.', 'success');
-            } else if (data.ics_content) {
-                // ICS 콘텐츠가 있으면 다운로드
-                this.downloadFile(data.ics_content, data.filename || 'schedule.ics', 'text/calendar');
-                this.showToast('ICS 파일이 다운로드되었습니다.', 'success');
+            if (!response.ok) {
+                throw new Error(`Calendar 추가 실패: ${response.status}`);
+            }
+
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showToast('Google Calendar에 일정이 추가되었습니다!', 'success');
+            } else {
+                throw new Error(result.error || 'Calendar 추가 실패');
             }
 
         } catch (error) {
-            console.error('ICS 다운로드 오류:', error);
-            this.showToast(`ICS 다운로드 실패: ${error.message}`, 'error');
+            console.error('❌ Google Calendar 추가 실패:', error);
+            
+            // 인증 오류인 경우 재인증 유도
+            if (error.message.includes('인증') || error.message.includes('401')) {
+                this.clearGoogleCredentials();
+                this.showGoogleAuthModal(scheduleId);
+            } else if (error.message.includes('파싱')) {
+                // 파싱 오류인 경우 명확한 메시지
+                this.showToast('ICS 파일 형식이 올바르지 않습니다. 일정 데이터를 확인해주세요.', 'error');
+            } else {
+                this.showToast(`Calendar 추가 실패: ${error.message}`, 'error');
+            }
         } finally {
             this.hideLoading();
+        }
+    }
+
+    // Google 인증 정보 가져오기
+    getGoogleCredentials() {
+        try {
+            const credentials = localStorage.getItem('google_credentials');
+            return credentials ? JSON.parse(credentials) : null;
+        } catch (error) {
+            console.error('Google 인증 정보 로드 실패:', error);
+            return null;
+        }
+    }
+
+    // Google 인증 정보 저장
+    setGoogleCredentials(credentials) {
+        try {
+            localStorage.setItem('google_credentials', JSON.stringify(credentials));
+        } catch (error) {
+            console.error('Google 인증 정보 저장 실패:', error);
+        }
+    }
+
+    // Google 인증 정보 삭제
+    clearGoogleCredentials() {
+        try {
+            localStorage.removeItem('google_credentials');
+        } catch (error) {
+            console.error('Google 인증 정보 삭제 실패:', error);
+        }
+    }
+
+    // Google 인증 모달 표시
+    showGoogleAuthModal(scheduleId) {
+        const modalContent = `
+            <div class="google-auth-modal">
+                <div class="google-auth-icon">
+                    <i class="fab fa-google"></i>
+                </div>
+                <h3>Google Calendar 연동</h3>
+                <p>일정을 Google Calendar에 추가하려면 Google 계정과 연동이 필요합니다.</p>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="dashboard.hideModal()">취소</button>
+                    <button type="button" class="btn btn-primary" onclick="dashboard.startGoogleAuth('${scheduleId}')">
+                        <i class="fab fa-google"></i>
+                        Google 연동하기
+                    </button>
+                </div>
+            </div>
+        `;
+
+        this.showModal('Google Calendar 연동', modalContent);
+    }
+
+    // Google 인증 시작
+    async startGoogleAuth(scheduleId) {
+        try {
+            this.hideModal();
+            this.showLoading('Google 인증 페이지로 이동 중...');
+
+            // 일정 ID를 임시 저장 (인증 완료 후 사용)
+            if (scheduleId) {
+                localStorage.setItem('pending_schedule_id', scheduleId);
+            }
+
+            // Google 인증 URL로 리다이렉트
+            const authUrl = `${this.config.apiBaseUrl}/api/auth/google?user_id=${this.userInfo.user_id}`;
+            window.location.href = authUrl;
+
+        } catch (error) {
+            console.error('Google 인증 시작 실패:', error);
+            this.showToast(`Google 인증 실패: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    // 페이지 로드 시 Google 인증 완료 체크
+    checkGoogleAuthCallback() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const googleAuth = urlParams.get('google_auth');
+        
+        if (googleAuth === 'success') {
+            // Google 인증 성공
+            this.showToast('Google Calendar 연동이 완료되었습니다!', 'success');
+            
+            // 대기 중인 일정이 있으면 처리
+            const pendingScheduleId = localStorage.getItem('pending_schedule_id');
+            if (pendingScheduleId) {
+                localStorage.removeItem('pending_schedule_id');
+                
+                // 잠시 후 캘린더 추가 재시도
+                setTimeout(() => {
+                    this.addToGoogleCalendar(pendingScheduleId);
+                }, 1000);
+            }
+            
+            // URL 파라미터 정리
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
         }
     }
 

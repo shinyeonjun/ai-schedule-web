@@ -4,6 +4,7 @@ Google OAuth 인증 및 사용자 관리 시스템
 """
 import os
 import urllib.parse
+import json
 from fastapi import FastAPI, HTTPException, status, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -60,9 +61,10 @@ async def google_login():
         "https://accounts.google.com/o/oauth2/auth"
         f"?client_id={settings.google_client_id}"
         "&response_type=code"
-        "&scope=openid email profile"
+        "&scope=openid email profile https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/gmail.send"
         f"&redirect_uri={settings.google_redirect_uri}"
         "&access_type=offline"
+        "&prompt=consent"
     )
     
     return {"auth_url": google_auth_url}
@@ -145,10 +147,22 @@ async def google_callback(code: str):
             name=user_record["name"]
         )
         
-        # 5. 대시보드로 리다이렉트 (토큰과 사용자 정보 포함)
+        # 5. Google Calendar 토큰 정보 준비
+        google_credentials = {
+            "access_token": access_token,
+            "refresh_token": token_info.get("refresh_token"),
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "client_id": settings.google_client_id,
+            "client_secret": settings.google_client_secret,
+            "scopes": ["openid", "email", "profile", "https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/gmail.send"],
+            "expiry": None  # 만료 시간은 추후 계산
+        }
+        
+        # 6. 대시보드로 리다이렉트 (토큰과 사용자 정보 포함)
         encoded_email = urllib.parse.quote(email)
         encoded_name = urllib.parse.quote(name)
         encoded_picture = urllib.parse.quote(picture) if picture else ""
+        encoded_google_credentials = urllib.parse.quote(json.dumps(google_credentials))
         
         redirect_url = (
             f"/dashboard.html?"
@@ -156,7 +170,8 @@ async def google_callback(code: str):
             f"user_id={user_record['id']}&"
             f"email={encoded_email}&"
             f"name={encoded_name}&"
-            f"picture={encoded_picture}"
+            f"picture={encoded_picture}&"
+            f"google_credentials={encoded_google_credentials}"
         )
         
         return RedirectResponse(url=redirect_url)
@@ -229,12 +244,14 @@ async def dashboard_page():
 # ==================== API 라우트 ====================
 
 # 라우터 추가
-from routers import analysis, schedules, members, email
+from routers import analysis, schedules, members, email, google_calendar, gmail
 
 app.include_router(analysis.router, prefix="/api", tags=["analysis"])
 app.include_router(schedules.router, prefix="/api", tags=["schedules"])
 app.include_router(members.router, prefix="/api", tags=["members"])
 app.include_router(email.router, prefix="/api", tags=["email"])
+app.include_router(google_calendar.router, prefix="/api", tags=["google_calendar"])
+app.include_router(gmail.router, tags=["gmail"])
 
 @app.get("/health")
 async def health_check():

@@ -66,9 +66,21 @@ class ICSService:
             description = schedule.get('description', '')
             location = schedule.get('location', '')
             
-            # 날짜/시간 파싱
-            start_dt = self._parse_datetime(schedule.get('start_date'), schedule.get('start_time', '09:00'))
-            end_dt = self._parse_datetime(schedule.get('end_date'), schedule.get('end_time', '10:00'))
+            # 날짜/시간 파싱 (DB의 start_datetime, end_datetime 필드 우선 사용)
+            start_datetime_str = schedule.get('start_datetime')
+            end_datetime_str = schedule.get('end_datetime')
+            
+            if start_datetime_str:
+                start_dt = self._parse_db_datetime(start_datetime_str)
+            else:
+                # 호환성을 위한 기존 방식
+                start_dt = self._parse_datetime(schedule.get('start_date'), schedule.get('start_time', '09:00'))
+            
+            if end_datetime_str:
+                end_dt = self._parse_db_datetime(end_datetime_str)
+            else:
+                # 호환성을 위한 기존 방식
+                end_dt = self._parse_datetime(schedule.get('end_date'), schedule.get('end_time', '10:00'))
             
             # 종료 시간이 시작 시간보다 이전이면 1시간 후로 설정
             if end_dt <= start_dt:
@@ -125,6 +137,36 @@ class ICSService:
             logger.error(f"VEVENT 생성 중 오류: {e}")
             return self._create_default_vevent()
     
+    def _parse_db_datetime(self, datetime_str: str) -> datetime:
+        """DB에서 저장된 datetime 문자열을 파싱"""
+        try:
+            print(f"🔍 DB datetime 파싱 시도: {datetime_str}")
+            
+            # ISO 형식 시도 (DB에서 저장된 형식)
+            iso_formats = [
+                "%Y-%m-%dT%H:%M:%S%z",       # 2025-08-05T09:00:00+09:00
+                "%Y-%m-%dT%H:%M:%S",         # 2025-08-05T09:00:00
+                "%Y-%m-%d %H:%M:%S",         # 2025-08-05 09:00:00
+                "%Y-%m-%d %H:%M",            # 2025-08-05 09:00
+                "%Y-%m-%dT%H:%M",            # 2025-08-05T09:00
+            ]
+            
+            for fmt in iso_formats:
+                try:
+                    parsed_dt = datetime.strptime(datetime_str, fmt)
+                    print(f"✅ DB datetime 파싱 성공: {parsed_dt} (형식: {fmt})")
+                    return parsed_dt
+                except ValueError:
+                    continue
+            
+            # 파싱 실패시 현재 시간 반환
+            print(f"❌ DB datetime 파싱 실패, 현재 시간 사용: {datetime_str}")
+            return datetime.now()
+            
+        except Exception as e:
+            print(f"❌ DB datetime 파싱 오류: {e}")
+            return datetime.now()
+
     def _parse_datetime(self, date_str: Optional[str], time_str: Optional[str] = None) -> datetime:
         """날짜 문자열을 datetime 객체로 변환"""
         try:
