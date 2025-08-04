@@ -124,6 +124,39 @@ async def get_user_schedules(
         )
 
 
+@router.get("/{schedule_id}")
+async def get_schedule_by_id(schedule_id: str):
+    """Get a specific schedule by ID"""
+    try:
+        print(f"🔍 [DEBUG] 개별 일정 조회 요청 - schedule_id: {schedule_id}")
+        
+        supabase = create_client(settings.supabase_url, settings.supabase_service_key)
+        
+        # 특정 일정 조회
+        result = supabase.table("schedules")\
+            .select("*")\
+            .eq("id", schedule_id)\
+            .single()\
+            .execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="일정을 찾을 수 없습니다")
+        
+        schedule = result.data
+        print(f"✅ [DEBUG] 일정 조회 성공: {schedule.get('name', 'N/A')}")
+        
+        return JSONResponse(content=schedule)
+
+    except Exception as e:
+        print(f"❌ [ERROR] 개별 일정 조회 실패: {str(e)}")
+        logger.error(f"Error fetching schedule by ID: {str(e)}")
+        
+        if "PGRST116" in str(e):  # Supabase의 "no rows returned" 에러
+            raise HTTPException(status_code=404, detail="일정을 찾을 수 없습니다")
+        
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/")
 async def create_schedule(
     schedule: Schedule,

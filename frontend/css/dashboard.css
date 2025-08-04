@@ -806,6 +806,7 @@ body {
     line-height: 1.5;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -992,4 +993,344 @@ body {
 
 .group-actions .btn {
     padding: 8px 16px;
+}
+
+/* ===== 메일 보내기 팝업 스타일 ===== */
+.email-modal .modal-content {
+    max-width: 700px;
+    width: 95%;
+}
+
+.email-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.email-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.email-field label {
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.email-field label i {
+    color: #6b7280;
+    font-size: 16px;
+}
+
+/* 다중 이메일 입력 */
+.email-recipients {
+    position: relative;
+}
+
+.email-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #ffffff;
+    min-height: 44px;
+    align-items: center;
+    cursor: text;
+    transition: all 0.2s ease;
+}
+
+.email-tags:focus-within {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.email-tag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid #7dd3fc;
+}
+
+.email-tag.invalid {
+    background: #fee2e2;
+    color: #dc2626;
+    border-color: #fca5a5;
+}
+
+.email-tag-remove {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    font-size: 14px;
+    font-weight: bold;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.email-tag-remove:hover {
+    opacity: 1;
+}
+
+.email-input-wrapper {
+    flex: 1;
+    min-width: 120px;
+}
+
+.email-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14px;
+    color: #374151;
+    width: 100%;
+    padding: 4px 0;
+}
+
+.email-input::placeholder {
+    color: #9ca3af;
+}
+
+/* 이메일 제안 드롭다운 */
+.email-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+    display: none;
+}
+
+.email-suggestions.show {
+    display: block;
+}
+
+.email-suggestion {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #374151;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background-color 0.2s ease;
+}
+
+.email-suggestion:hover,
+.email-suggestion.selected {
+    background: #f8fafc;
+}
+
+.email-suggestion:last-child {
+    border-bottom: none;
+}
+
+/* 제목 입력 */
+.email-subject-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #374151;
+    background: #ffffff;
+    transition: all 0.2s ease;
+}
+
+.email-subject-input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* 내용 입력 */
+.email-content-textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #374151;
+    background: #ffffff;
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.6;
+    transition: all 0.2s ease;
+}
+
+.email-content-textarea:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* ICS 첨부 정보 */
+.ics-attachment {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ics-attachment-icon {
+    font-size: 20px;
+    color: #2563eb;
+}
+
+.ics-attachment-info {
+    flex: 1;
+}
+
+.ics-attachment-name {
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.ics-attachment-desc {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* 메일 폼 액션 */
+.email-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding-top: 20px;
+    border-top: 1px solid #f3f4f6;
+    margin-top: 20px;
+}
+
+.email-actions .btn {
+    min-width: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-send {
+    background: #2563eb;
+    color: white;
+    border: 1px solid #2563eb;
+}
+
+.btn-send:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.btn-send:disabled {
+    background: #9ca3af;
+    border-color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.btn-cancel {
+    background: white;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+}
+
+.btn-cancel:hover {
+    background: #f9fafb;
+    color: #374151;
+    border-color: #9ca3af;
+}
+
+/* 유효성 검사 메시지 */
+.field-error {
+    color: #dc2626;
+    font-size: 12px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.field-error i {
+    font-size: 14px;
+}
+
+/* 로딩 상태 */
+.email-form.sending {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.sending-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    z-index: 1;
+}
+
+.sending-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f4f6;
+    border-top: 2px solid #2563eb;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .email-modal .modal-content {
+        width: 95%;
+        margin: 20px;
+        max-height: calc(100vh - 40px);
+    }
+    
+    .email-tags {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    
+    .email-tag {
+        justify-content: space-between;
+    }
+    
+    .email-actions {
+        flex-direction: column;
+    }
+    
+    .email-actions .btn {
+        width: 100%;
+    }
 } 

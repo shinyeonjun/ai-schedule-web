@@ -243,6 +243,126 @@
             </div>
         </div>
     </div>
+
+    <!-- 메일 보내기 모달 -->
+    <div id="emailModal" class="modal email-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-envelope"></i>
+                    일정 메일 보내기
+                </h3>
+                <button class="modal-close" id="emailModalClose">
+                    ×
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="emailForm" class="email-form">
+                    <!-- 받는 사람 (다중 이메일) -->
+                    <div class="email-field">
+                        <label for="emailRecipients">
+                            <i class="fas fa-users"></i>
+                            받는 사람
+                        </label>
+                        <div class="email-recipients" id="emailRecipients">
+                            <div class="email-tags" id="emailTags">
+                                <div class="email-input-wrapper">
+                                    <input 
+                                        type="text" 
+                                        class="email-input" 
+                                        id="emailInput"
+                                        placeholder="이메일 주소를 입력하세요 (예: user@example.com)"
+                                        autocomplete="email"
+                                    >
+                                </div>
+                            </div>
+                            <div class="email-suggestions" id="emailSuggestions"></div>
+                        </div>
+                        <div class="field-error" id="recipientsError" style="display: none;">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span></span>
+                        </div>
+                    </div>
+
+                    <!-- 제목 -->
+                    <div class="email-field">
+                        <label for="emailSubject">
+                            <i class="fas fa-heading"></i>
+                            제목
+                        </label>
+                        <input 
+                            type="text" 
+                            class="email-subject-input" 
+                            id="emailSubject"
+                            placeholder="메일 제목을 입력하세요"
+                            maxlength="200"
+                        >
+                        <div class="field-error" id="subjectError" style="display: none;">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span></span>
+                        </div>
+                    </div>
+
+                    <!-- 내용 -->
+                    <div class="email-field">
+                        <label for="emailContent">
+                            <i class="fas fa-edit"></i>
+                            내용
+                        </label>
+                        <textarea 
+                            class="email-content-textarea" 
+                            id="emailContent"
+                            placeholder="메일 내용을 입력하세요&#10;&#10;일정 파일(ICS)이 자동으로 첨부됩니다."
+                            maxlength="5000"
+                        ></textarea>
+                        <div class="field-error" id="contentError" style="display: none;">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span></span>
+                        </div>
+                    </div>
+
+                    <!-- ICS 첨부 파일 정보 -->
+                    <div class="email-field">
+                        <label>
+                            <i class="fas fa-paperclip"></i>
+                            첨부 파일
+                        </label>
+                        <div class="ics-attachment" id="icsAttachment">
+                            <div class="ics-attachment-icon">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                            <div class="ics-attachment-info">
+                                <div class="ics-attachment-name" id="icsAttachmentName">
+                                    일정 파일.ics
+                                </div>
+                                <div class="ics-attachment-desc">
+                                    캘린더에 추가할 수 있는 일정 파일이 자동으로 첨부됩니다.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 액션 버튼 -->
+                    <div class="email-actions">
+                        <button type="button" class="btn btn-cancel" id="emailCancelBtn">
+                            <i class="fas fa-times"></i>
+                            취소
+                        </button>
+                        <button type="submit" class="btn btn-send" id="emailSendBtn">
+                            <i class="fas fa-paper-plane"></i>
+                            메일 보내기
+                        </button>
+                    </div>
+
+                    <!-- 전송 중 오버레이 -->
+                    <div class="sending-overlay" id="sendingOverlay" style="display: none;">
+                        <div class="sending-spinner"></div>
+                        <span>메일 전송 중...</span>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     
     <!-- 페이지 로드 즉시 초기화 -->
     <script type="module">

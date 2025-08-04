@@ -17,11 +17,40 @@ document.addEventListener('DOMContentLoaded', function() {
     init();
     
     function init() {
+        // 기존 로그인 상태 확인
+        checkExistingLogin();
+        
         // 이벤트 리스너 등록
         attachEventListeners();
         
         // 환영 메시지 표시
         showWelcomeMessage();
+    }
+
+    // 기존 로그인 상태 확인
+    function checkExistingLogin() {
+        console.log('🔍 기존 로그인 상태 확인...');
+        
+        const storedToken = localStorage.getItem('mufi_token');
+        const storedUserInfo = localStorage.getItem('mufi_user_info');
+        
+        if (storedToken && storedUserInfo) {
+            try {
+                const userInfo = JSON.parse(storedUserInfo);
+                console.log('✅ 기존 로그인 발견 - 대시보드로 즉시 이동');
+                
+                // 즉시 대시보드로 이동
+                window.location.href = 'dashboard.html';
+                
+            } catch (error) {
+                console.error('❌ 저장된 사용자 정보 파싱 실패:', error);
+                // 잘못된 데이터 정리
+                localStorage.removeItem('mufi_token');
+                localStorage.removeItem('mufi_user_info');
+            }
+        } else {
+            console.log('💡 새로운 로그인 필요');
+        }
     }
     
     function attachEventListeners() {

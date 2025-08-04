@@ -20,8 +20,14 @@ class MUFIDashboard {
         this.initializeDashboard();
     }
 
-    initializeDashboard() {
+    async initializeDashboard() {
         console.log('📋 DOM 요소들 바인딩 시작...');
+        
+        // 먼저 로그인 상태 확인 (비동기 대기)
+        const authResult = await this.checkAuthenticationState();
+        if (!authResult) {
+            return; // 인증 실패시 함수 종료
+        }
         
         try {
             // DOM 요소들
@@ -179,19 +185,26 @@ class MUFIDashboard {
 
     // 인증된 요청을 위한 헬퍼 메서드
     async authenticatedFetch(url, options = {}) {
-        // URL 파라미터에서 토큰 가져오기 (fallback)
+        // 토큰 우선순위: 1. localStorage → 2. userInfo → 3. URL 파라미터 → 4. authManager
         let token = null;
-        if (window.authManager && window.authManager.getToken) {
-            token = window.authManager.getToken();
-        } else {
-            // URL 파라미터에서 토큰 추출
+        
+        // 1. localStorage에서 토큰 조회 (가장 우선)
+        token = localStorage.getItem('mufi_token');
+        
+        // 2. userInfo에서 토큰 조회
+        if (!token && this.userInfo && this.userInfo.token) {
+            token = this.userInfo.token;
+        }
+        
+        // 3. URL 파라미터에서 토큰 추출 (fallback)
+        if (!token) {
             const urlParams = new URLSearchParams(window.location.search);
             token = urlParams.get('token');
-            
-            // userInfo에서도 시도
-            if (!token && this.userInfo && this.userInfo.token) {
-                token = this.userInfo.token;
-            }
+        }
+        
+        // 4. authManager에서 토큰 조회 (legacy)
+        if (!token && window.authManager && window.authManager.getToken) {
+            token = window.authManager.getToken();
         }
         
         const headers = {
@@ -212,14 +225,14 @@ class MUFIDashboard {
             headers
         });
         
-        // 401 오류 시 로그아웃 처리
+        // 401 오류 시 세션 정리 및 로그인 페이지 이동
         if (response.status === 401) {
-            console.log('🔒 인증 토큰 만료 - 로그인 페이지로 이동');
-            if (window.authManager && window.authManager.logout) {
-                window.authManager.logout();
-            } else {
-                window.location.href = '/login.html';
-            }
+            console.log('🔒 인증 토큰 만료 - 세션 정리 후 로그인 페이지로 이동');
+            this.clearStoredSession();
+            this.showToast('로그인이 만료되었습니다. 다시 로그인해주세요.', 'warning');
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 2000);
             throw new Error('인증이 필요합니다');
         }
         
@@ -742,61 +755,215 @@ class MUFIDashboard {
         }, 5000);
     }
 
+    // 인증 상태 확인
+    async checkAuthenticationState() {
+        console.log('🔐 인증 상태 확인 시작...');
+        
+        // 1. URL 파라미터에서 토큰 확인
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        
+        // 2. localStorage에서 저장된 토큰 확인
+        const storedToken = localStorage.getItem('mufi_token');
+        const storedUserInfo = localStorage.getItem('mufi_user_info');
+        
+        console.log('🔍 토큰 상태:', {
+            currentUrl: window.location.href,
+            urlToken: !!token,
+            urlTokenValue: token ? token.substring(0, 20) + '...' : null,
+            storedToken: !!storedToken,
+            storedTokenValue: storedToken ? storedToken.substring(0, 20) + '...' : null,
+            storedUserInfo: !!storedUserInfo,
+            storedUserInfoPreview: storedUserInfo ? JSON.parse(storedUserInfo).name : null
+        });
+        
+        if (token) {
+            // URL에 토큰이 있으면 새로운 로그인으로 처리
+            console.log('✅ URL에서 새로운 토큰 발견 - 로그인 처리');
+            this.handleNewLogin(token, urlParams);
+            return true;
+        } else if (storedToken && storedUserInfo) {
+            // 저장된 토큰이 있으면 세션 유지
+            console.log('🔄 저장된 토큰으로 세션 복원 시도...');
+            const isValid = await this.validateStoredSession(storedToken, storedUserInfo);
+            console.log('🔍 세션 복원 결과:', isValid);
+            return isValid;
+        } else {
+            // 토큰이 없으면 로그인 페이지로 리다이렉트
+            console.log('❌ 인증 토큰 없음 - 로그인 페이지로 이동');
+            console.log('❌ localStorage 상태 확인:', {
+                keys: Object.keys(localStorage),
+                mufi_token: localStorage.getItem('mufi_token'),
+                mufi_user_info: localStorage.getItem('mufi_user_info')
+            });
+            this.redirectToLogin();
+            return false;
+        }
+    }
+
+    // 새로운 로그인 처리
+    handleNewLogin(token, urlParams) {
+        const name = decodeURIComponent(urlParams.get('name') || '사용자');
+        const email = decodeURIComponent(urlParams.get('email') || '');
+        const picture = decodeURIComponent(urlParams.get('picture') || '');
+        const userId = urlParams.get('user_id');
+        const googleCredentials = urlParams.get('google_credentials');
+
+        // 사용자 정보 객체 생성
+        const userInfo = {
+            name,
+            email,
+            picture,
+            token,
+            user_id: userId,
+            loginTime: new Date().toISOString()
+        };
+
+        // Google Calendar 토큰 처리
+        if (googleCredentials) {
+            try {
+                const credentials = JSON.parse(decodeURIComponent(googleCredentials));
+                this.setGoogleCredentials(credentials);
+                console.log('✅ Google Calendar 토큰 자동 저장 완료');
+            } catch (error) {
+                console.error('❌ Google Calendar 토큰 파싱 실패:', error);
+            }
+        }
+
+        // localStorage에 저장
+        localStorage.setItem('mufi_token', token);
+        localStorage.setItem('mufi_user_info', JSON.stringify(userInfo));
+
+        // 사용자 정보 설정
+        this.userInfo = userInfo;
+        
+        console.log('✅ 새로운 로그인 처리 완료');
+        
+        // URL 파라미터 정리
+        this.cleanupUrlParameters();
+    }
+
+    // 저장된 세션 검증
+    async validateStoredSession(storedToken, storedUserInfo) {
+        try {
+            const userInfo = JSON.parse(storedUserInfo);
+            console.log('📋 저장된 사용자 정보:', userInfo);
+            
+            // 로그인 시간 확인 (24시간 이내인지)
+            const loginTime = new Date(userInfo.loginTime);
+            const now = new Date();
+            const timeDiff = now - loginTime;
+            const hoursDiff = timeDiff / (1000 * 60 * 60);
+            
+            console.log(`⏰ 로그인 시간 차이: ${hoursDiff.toFixed(2)}시간`);
+            
+            if (hoursDiff > 24) {
+                console.log('❌ 로그인 시간이 24시간을 초과했습니다 - 재로그인 필요');
+                this.clearStoredSession();
+                this.redirectToLogin();
+                return false;
+            }
+            
+            // 임시로 백엔드 검증 없이 localStorage 기반으로만 세션 유지
+            console.log('✅ 저장된 세션이 유효함 - 로그인 상태 복원 (임시: 백엔드 검증 생략)');
+            this.userInfo = userInfo;
+            
+            // 로그인 시간 갱신
+            if (hoursDiff > 1) { // 1시간 이상 지났으면 갱신
+                console.log('⏰ 로그인 시간 갱신');
+                userInfo.loginTime = now.toISOString();
+                localStorage.setItem('mufi_user_info', JSON.stringify(userInfo));
+            }
+            
+            return true;
+            
+        } catch (error) {
+            console.error('❌ 세션 검증 중 오류:', error);
+            this.clearStoredSession();
+            this.redirectToLogin();
+            return false;
+        }
+    }
+
+    // 토큰 유효성 검증 (authenticatedFetch 사용하지 않음 - 무한 루프 방지)
+    async verifyToken(token) {
+        try {
+            const response = await fetch(`${this.config.apiBaseUrl}/api/auth/verify`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                return data.valid === true;
+            }
+            
+            return false;
+            
+        } catch (error) {
+            console.error('토큰 검증 API 오류:', error);
+            return false;
+        }
+    }
+
+    // URL 파라미터 정리
+    cleanupUrlParameters() {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        console.log('🧹 URL 파라미터 정리 완료');
+    }
+
+    // 저장된 세션 정리
+    clearStoredSession() {
+        localStorage.removeItem('mufi_token');
+        localStorage.removeItem('mufi_user_info');
+        localStorage.removeItem('mufi_google_credentials');
+        console.log('🗑️ 저장된 세션 정보 삭제 완료');
+    }
+
+    // 로그인 페이지로 리다이렉트
+    redirectToLogin() {
+        console.log('↪️ 로그인 페이지로 리다이렉트');
+        window.location.href = 'login.html';
+    }
+
     // 사용자 정보 로드
     loadUserInfo() {
         try {
-            // URL 파라미터에서 사용자 정보 추출
-            const urlParams = new URLSearchParams(window.location.search);
-            const name = decodeURIComponent(urlParams.get('name') || '사용자');
-            const email = decodeURIComponent(urlParams.get('email') || '');
-            const picture = decodeURIComponent(urlParams.get('picture') || '');
-            const token = urlParams.get('token');
-            const userId = urlParams.get('user_id');
-            const googleCredentials = urlParams.get('google_credentials');
-
-            console.log('📋 사용자 정보:', { name, email, picture: !!picture, userId, hasGoogleCredentials: !!googleCredentials });
-
-            // Google Calendar 토큰이 있으면 저장
-            if (googleCredentials) {
-                try {
-                    const credentials = JSON.parse(decodeURIComponent(googleCredentials));
-                    this.setGoogleCredentials(credentials);
-                    console.log('✅ Google Calendar 토큰 자동 저장 완료');
-                } catch (error) {
-                    console.error('❌ Google Calendar 토큰 파싱 실패:', error);
-                }
+            // this.userInfo가 이미 설정되어 있으면 (인증 상태 확인에서 설정됨) 사용
+            if (!this.userInfo) {
+                console.log('❌ 사용자 정보가 설정되지 않음');
+                this.redirectToLogin();
+                return;
             }
 
-            // 사용자 정보를 전역에 저장
-            this.userInfo = { name, email, picture, token, user_id: userId };
+            const { name, email, picture } = this.userInfo;
+            console.log('📋 사용자 정보 표시:', { name, email, picture: !!picture });
 
             // 사용자 이름 표시
-            this.elements.userName.textContent = name;
-            this.elements.userEmail.textContent = email;
+            this.elements.userName.textContent = name || '사용자';
+            this.elements.userEmail.textContent = email || '';
 
             // 프로필 이미지 처리
-            if (picture && picture !== 'undefined') {
+            if (picture && picture !== 'undefined' && picture !== '') {
                 this.elements.userAvatar.src = picture;
                 this.elements.userAvatar.style.display = 'block';
                 this.elements.userAvatar.nextElementSibling.style.display = 'none';
             } else {
                 // 이니셜 표시
-                const initials = name.split(' ').map(word => word.charAt(0)).join('').substring(0, 2).toUpperCase();
+                const initials = (name || '사용자').split(' ').map(word => word.charAt(0)).join('').substring(0, 2).toUpperCase();
                 this.elements.userInitials.textContent = initials;
                 this.elements.userAvatar.style.display = 'none';
                 this.elements.userAvatar.nextElementSibling.style.display = 'flex';
             }
 
-            // URL 파라미터 정리 (토큰 정보 제거)
-            if (urlParams.has('google_credentials') || urlParams.has('token')) {
-                const cleanUrl = window.location.pathname;
-                window.history.replaceState({}, document.title, cleanUrl);
-            }
-
-            console.log('✅ 사용자 정보 로드 완료');
+            console.log('✅ 사용자 정보 표시 완료');
 
         } catch (error) {
-            console.error('❌ 사용자 정보 로드 실패:', error);
+            console.error('❌ 사용자 정보 표시 실패:', error);
             this.elements.userName.textContent = '사용자';
             this.elements.userEmail.textContent = '정보 로드 실패';
         }
@@ -807,8 +974,10 @@ class MUFIDashboard {
         try {
             console.log('🚪 로그아웃 시작...');
             
-            // 로컬 저장소 정리
-            localStorage.clear();
+            // 세션 정리
+            this.clearStoredSession();
+            
+            // 추가 저장소 정리
             sessionStorage.clear();
             
             // 쿠키 정리
@@ -822,7 +991,7 @@ class MUFIDashboard {
             
             // 로그인 페이지로 리다이렉트
             setTimeout(() => {
-                window.location.href = '/login.html';
+                window.location.href = 'login.html';
             }, 1000);
             
         } catch (error) {
@@ -2638,7 +2807,7 @@ class MUFIDashboardExtension extends MUFIDashboard {
     // Google 인증 정보 가져오기
     getGoogleCredentials() {
         try {
-            const credentials = localStorage.getItem('google_credentials');
+            const credentials = localStorage.getItem('mufi_google_credentials');
             return credentials ? JSON.parse(credentials) : null;
         } catch (error) {
             console.error('Google 인증 정보 로드 실패:', error);
@@ -2649,7 +2818,8 @@ class MUFIDashboardExtension extends MUFIDashboard {
     // Google 인증 정보 저장
     setGoogleCredentials(credentials) {
         try {
-            localStorage.setItem('google_credentials', JSON.stringify(credentials));
+            localStorage.setItem('mufi_google_credentials', JSON.stringify(credentials));
+            console.log('✅ Google 인증 정보 저장 완료');
         } catch (error) {
             console.error('Google 인증 정보 저장 실패:', error);
         }
@@ -2658,7 +2828,8 @@ class MUFIDashboardExtension extends MUFIDashboard {
     // Google 인증 정보 삭제
     clearGoogleCredentials() {
         try {
-            localStorage.removeItem('google_credentials');
+            localStorage.removeItem('mufi_google_credentials');
+            console.log('🗑️ Google 인증 정보 삭제 완료');
         } catch (error) {
             console.error('Google 인증 정보 삭제 실패:', error);
         }
@@ -2735,8 +2906,311 @@ class MUFIDashboardExtension extends MUFIDashboard {
         }
     }
 
-    // 일정 이메일 발송
+    // 일정 이메일 발송 (새로운 모달 사용)
     async sendScheduleEmail(scheduleId) {
+        try {
+            // 스케줄 정보를 가져와서 모달에 표시
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedules/${scheduleId}`);
+            if (!response.ok) {
+                throw new Error('일정 정보를 가져올 수 없습니다.');
+            }
+            
+            const schedule = await response.json();
+            this.showEmailModal(schedule);
+            
+        } catch (error) {
+            console.error('일정 정보 조회 오류:', error);
+            this.showToast(`일정 정보 조회 실패: ${error.message}`, 'error');
+        }
+    }
+
+    // 메일 모달 표시
+    showEmailModal(schedule) {
+        const modal = document.getElementById('emailModal');
+        const form = document.getElementById('emailForm');
+        const subjectInput = document.getElementById('emailSubject');
+        const contentTextarea = document.getElementById('emailContent');
+        const attachmentName = document.getElementById('icsAttachmentName');
+        
+        // 기본값 설정
+        subjectInput.value = `[MUFI] ${schedule.title || '일정'} - 캘린더 파일`;
+        contentTextarea.value = `안녕하세요,
+
+${schedule.title || '일정'} 관련 캘린더 파일을 첨부해드립니다.
+
+일정 정보:
+- 제목: ${schedule.title || '제목 없음'}
+- 일시: ${schedule.start_datetime ? new Date(schedule.start_datetime).toLocaleString('ko-KR') : '미정'}
+${schedule.description ? `- 설명: ${schedule.description}` : ''}
+${schedule.location ? `- 장소: ${schedule.location}` : ''}
+
+첨부된 .ics 파일을 다운로드하여 캘린더 앱에 추가하시면 일정이 자동으로 등록됩니다.
+
+감사합니다.`;
+
+        attachmentName.textContent = `${schedule.title || '일정'}.ics`;
+        
+        // 모달 표시
+        modal.classList.add('show');
+        
+        // 폼 이벤트 설정
+        this.setupEmailModal(schedule);
+    }
+
+    // 메일 모달 이벤트 설정
+    setupEmailModal(schedule) {
+        const modal = document.getElementById('emailModal');
+        const closeBtn = document.getElementById('emailModalClose');
+        const cancelBtn = document.getElementById('emailCancelBtn');
+        const form = document.getElementById('emailForm');
+        
+        // 닫기 버튼들
+        const closeModal = () => {
+            modal.classList.remove('show');
+            this.resetEmailForm();
+        };
+        
+        closeBtn.onclick = closeModal;
+        cancelBtn.onclick = closeModal;
+        
+        // 모달 배경 클릭시 닫기
+        modal.onclick = (e) => {
+            if (e.target === modal) closeModal();
+        };
+        
+        // 폼 제출
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            await this.handleEmailSubmit(schedule);
+        };
+        
+        // 이메일 입력 기능 초기화
+        this.initializeEmailInput();
+    }
+
+    // 이메일 입력 기능 초기화
+    initializeEmailInput() {
+        const emailInput = document.getElementById('emailInput');
+        const emailTags = document.getElementById('emailTags');
+        const emailSuggestions = document.getElementById('emailSuggestions');
+        
+        this.emailList = []; // 입력된 이메일 목록
+        
+        // 이메일 입력 이벤트
+        emailInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ',' || e.key === ';') {
+                e.preventDefault();
+                this.addEmailTag(emailInput.value.trim());
+                emailInput.value = '';
+            } else if (e.key === 'Backspace' && emailInput.value === '' && this.emailList.length > 0) {
+                // 백스페이스로 마지막 이메일 태그 제거
+                this.removeEmailTag(this.emailList.length - 1);
+            }
+        });
+        
+        emailInput.addEventListener('blur', () => {
+            if (emailInput.value.trim()) {
+                this.addEmailTag(emailInput.value.trim());
+                emailInput.value = '';
+            }
+        });
+        
+        // 태그 컨테이너 클릭시 입력 필드 포커스
+        emailTags.addEventListener('click', () => {
+            emailInput.focus();
+        });
+    }
+
+    // 이메일 태그 추가
+    addEmailTag(email) {
+        if (!email || this.emailList.includes(email)) return;
+        
+        const isValid = this.validateEmail(email);
+        this.emailList.push(email);
+        
+        const emailTags = document.getElementById('emailTags');
+        const inputWrapper = emailTags.querySelector('.email-input-wrapper');
+        
+        const tag = document.createElement('div');
+        tag.className = `email-tag ${isValid ? '' : 'invalid'}`;
+        tag.innerHTML = `
+            <span>${email}</span>
+            <button type="button" class="email-tag-remove" onclick="window.dashboard.removeEmailTag(${this.emailList.length - 1})">
+                ×
+            </button>
+        `;
+        
+        emailTags.insertBefore(tag, inputWrapper);
+        this.updateEmailValidation();
+    }
+
+    // 이메일 태그 제거
+    removeEmailTag(index) {
+        if (index < 0 || index >= this.emailList.length) return;
+        
+        this.emailList.splice(index, 1);
+        
+        // DOM 업데이트
+        const emailTags = document.getElementById('emailTags');
+        const tags = emailTags.querySelectorAll('.email-tag');
+        if (tags[index]) {
+            tags[index].remove();
+        }
+        
+        // 인덱스 재정렬
+        tags.forEach((tag, i) => {
+            if (i > index) {
+                const removeBtn = tag.querySelector('.email-tag-remove');
+                removeBtn.onclick = () => window.dashboard.removeEmailTag(i - 1);
+            }
+        });
+        
+        this.updateEmailValidation();
+    }
+
+    // 이메일 유효성 검사
+    validateEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    // 이메일 유효성 업데이트
+    updateEmailValidation() {
+        const recipientsError = document.getElementById('recipientsError');
+        const invalidEmails = this.emailList.filter(email => !this.validateEmail(email));
+        
+        if (invalidEmails.length > 0) {
+            recipientsError.style.display = 'flex';
+            recipientsError.querySelector('span').textContent = `유효하지 않은 이메일 주소가 있습니다: ${invalidEmails.join(', ')}`;
+        } else if (this.emailList.length === 0) {
+            recipientsError.style.display = 'flex';
+            recipientsError.querySelector('span').textContent = '최소 한 개의 이메일 주소를 입력해주세요.';
+        } else {
+            recipientsError.style.display = 'none';
+        }
+    }
+
+    // 메일 폼 리셋
+    resetEmailForm() {
+        const form = document.getElementById('emailForm');
+        form.reset();
+        
+        // 이메일 태그 모두 제거
+        this.emailList = [];
+        const emailTags = document.getElementById('emailTags');
+        const tags = emailTags.querySelectorAll('.email-tag');
+        tags.forEach(tag => tag.remove());
+        
+        // 에러 메시지 숨기기
+        const errors = form.querySelectorAll('.field-error');
+        errors.forEach(error => error.style.display = 'none');
+    }
+
+    // 메일 전송 처리
+    async handleEmailSubmit(schedule) {
+        const subject = document.getElementById('emailSubject').value.trim();
+        const content = document.getElementById('emailContent').value.trim();
+        const sendingOverlay = document.getElementById('sendingOverlay');
+        
+        // 유효성 검사
+        this.updateEmailValidation();
+        
+        const validEmails = this.emailList.filter(email => this.validateEmail(email));
+        
+        if (validEmails.length === 0) {
+            this.showToast('유효한 이메일 주소를 입력해주세요.', 'error');
+            return;
+        }
+        
+        if (!subject) {
+            const subjectError = document.getElementById('subjectError');
+            subjectError.style.display = 'flex';
+            subjectError.querySelector('span').textContent = '제목을 입력해주세요.';
+            return;
+        }
+        
+        if (!content) {
+            const contentError = document.getElementById('contentError');
+            contentError.style.display = 'flex';
+            contentError.querySelector('span').textContent = '내용을 입력해주세요.';
+            return;
+        }
+
+        try {
+            // 전송 중 표시
+            sendingOverlay.style.display = 'flex';
+            
+            // Google 인증 정보 가져오기
+            const googleCredentials = this.getGoogleCredentials();
+            console.log('🔍 Google 인증 정보 확인:', {
+                hasCredentials: !!googleCredentials,
+                hasAccessToken: !!(googleCredentials?.access_token),
+                hasRefreshToken: !!(googleCredentials?.refresh_token)
+            });
+            
+            if (!googleCredentials) {
+                throw new Error('Google 인증이 필요합니다. 다시 로그인해주세요.');
+            }
+
+            const requestData = {
+                schedule_id: schedule.id,
+                to_emails: validEmails,
+                google_credentials: googleCredentials,
+                subject: subject,
+                message: content
+            };
+            
+            console.log('📧 Schedule 객체 확인:', {
+                schedule: schedule,
+                schedule_id_from_object: schedule?.id,
+                schedule_keys: schedule ? Object.keys(schedule) : 'schedule is null'
+            });
+            
+            console.log('📧 전송할 데이터:', {
+                schedule_id: requestData.schedule_id,
+                to_emails: requestData.to_emails,
+                subject: requestData.subject,
+                message: requestData.message ? requestData.message.substring(0, 50) + '...' : '',
+                google_credentials_exists: !!requestData.google_credentials,
+                google_credentials_keys: requestData.google_credentials ? Object.keys(requestData.google_credentials) : []
+            });
+
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/gmail/send-schedule`, {
+                method: 'POST',
+                body: JSON.stringify(requestData)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.text();
+                console.error('📧 에러 응답:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: errorData
+                });
+                throw new Error(`이메일 발송 실패: ${response.status} - ${errorData}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showToast(`${validEmails.length}명에게 이메일을 성공적으로 발송했습니다.`, 'success');
+                // 모달 닫기
+                document.getElementById('emailModal').classList.remove('show');
+                this.resetEmailForm();
+            } else {
+                throw new Error(data.message || '이메일 발송에 실패했습니다.');
+            }
+
+        } catch (error) {
+            console.error('이메일 발송 오류:', error);
+            this.showToast(`이메일 발송 실패: ${error.message}`, 'error');
+        } finally {
+            sendingOverlay.style.display = 'none';
+        }
+    }
+
+    // 기존 코드 유지
+    async _sendEmailLegacy(scheduleId) {
         const emails = prompt('이메일 주소를 입력하세요 (여러 개인 경우 쉼표로 구분):');
         if (!emails) return;
 

@@ -28,6 +28,7 @@ class SendScheduleEmailRequest(BaseModel):
     schedule_id: str
     to_emails: List[EmailStr]
     google_credentials: Dict
+    subject: Optional[str] = ""
     message: Optional[str] = ""
 
 class SendGroupEmailRequest(BaseModel):
@@ -50,6 +51,26 @@ async def send_schedule_email(
     개별 일정을 이메일로 전송
     """
     try:
+        print(f"📧 [DEBUG] Raw request received")
+        print(f"📧 Request 타입: {type(request)}")
+        
+        # 개별 필드 안전하게 접근
+        try:
+            schedule_id = getattr(request, 'schedule_id', 'MISSING')
+            to_emails = getattr(request, 'to_emails', 'MISSING') 
+            subject = getattr(request, 'subject', 'MISSING')
+            message = getattr(request, 'message', 'MISSING')
+            google_credentials = getattr(request, 'google_credentials', 'MISSING')
+            
+            print(f"📧 Schedule ID: {schedule_id} (타입: {type(schedule_id)})")
+            print(f"📧 수신자: {to_emails} (타입: {type(to_emails)})")
+            print(f"📧 제목: {subject} (타입: {type(subject)})")
+            print(f"📧 내용: {str(message)[:100] if message != 'MISSING' else 'MISSING'}...")
+            print(f"📧 Google 인증: 있음={google_credentials != 'MISSING'}")
+            
+        except Exception as attr_error:
+            print(f"📧 [ERROR] 속성 접근 오류: {attr_error}")
+            
         print(f"📧 일정 이메일 전송 요청: schedule_id={request.schedule_id}")
         print(f"📧 수신자: {request.to_emails}")
         
@@ -64,18 +85,71 @@ async def send_schedule_email(
         
         schedule = result.data[0]
         
-        # ICS 콘텐츠 생성
-        ics_content = ics_service.generate_ics_content(
-            schedules=[schedule],
-            title=schedule.get('title', '일정')
-        )
+        # ICS 콘텐츠 가져오기 (캐시 → Storage 다운로드 → 새로 생성)
+        ics_file_path = schedule.get('ics_file_path')
         
+        print(f"🔍 [DEBUG] Raw ics_file_path: {ics_file_path}")
+        
+        if ics_file_path:
+            # 캐시에서 먼저 확인
+            if ics_file_path in gmail_service._ics_cache:
+                print(f"🎯 캐시에서 ICS 파일 사용: {ics_file_path}")
+                ics_content = gmail_service._ics_cache[ics_file_path]
+            else:
+                # URL에서 실제 파일 경로 추출
+                if ics_file_path.startswith('http'):
+                    # URL에서 파일 경로 부분만 추출 
+                    # 예: https://xxx.supabase.co/storage/v1/object/public/schedules/users/xxx/file.ics
+                    # → users/xxx/file.ics
+                    parts = ics_file_path.split('/schedules/')
+                    if len(parts) > 1:
+                        storage_path = parts[1].split('?')[0]  # URL 파라미터 제거
+                    else:
+                        storage_path = ics_file_path
+                else:
+                    storage_path = ics_file_path
+                
+                print(f"📁 Storage에서 ICS 파일 다운로드")
+                print(f"📁 원본 경로: {ics_file_path}")
+                print(f"📁 Storage 경로: {storage_path}")
+                
+                try:
+                    # Storage에서 ICS 파일 다운로드
+                    file_response = supabase.storage.from_("schedules").download(storage_path)
+                    ics_content = file_response.decode('utf-8')
+                    # ICS 콘텐츠 확인
+                    print(f"📄 ICS 콘텐츠 미리보기 (처음 200자):")
+                    print(f"📄 {ics_content[:200]}...")
+                    print(f"📄 ICS 콘텐츠 길이: {len(ics_content)} 문자")
+                    
+                    # 캐시에 저장 (스마트 캐시 관리)
+                    gmail_service._manage_cache(ics_file_path, ics_content)
+                    print(f"✅ Storage에서 ICS 파일 다운로드 및 캐시 저장 완료")
+                except Exception as storage_error:
+                    print(f"❌ Storage 다운로드 실패, 새로 생성: {storage_error}")
+                    # Storage 다운로드 실패 시 새로 생성
+                    ics_content = ics_service.generate_ics_content(
+                        schedules=[schedule],
+                        title=schedule.get('title', '일정')
+                    )
+        else:
+            print(f"📝 ICS 파일 경로가 없어 새로 생성")
+            # ICS 파일 경로가 없으면 새로 생성
+            ics_content = ics_service.generate_ics_content(
+                schedules=[schedule],
+                title=schedule.get('title', '일정')
+            )
+        
+        # 제목 설정 (사용자 입력 > 일정 제목 > 기본값)
+        email_subject = request.subject or schedule.get('title', '일정')
+        email_content = request.message or schedule.get('description', '')
+
         # Gmail 서비스를 통해 이메일 전송
         email_result = await gmail_service.send_schedule_invitation(
             google_credentials=request.google_credentials,
             to_emails=request.to_emails,
-            schedule_title=schedule.get('title', '일정'),
-            schedule_description=schedule.get('description', ''),
+            schedule_title=email_subject,
+            schedule_description=email_content,
             ics_content=ics_content,
             sender_name="MUFI"
         )
@@ -99,7 +173,12 @@ async def send_schedule_email(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         logger.error(f"❌ 일정 이메일 전송 오류: {e}")
+        logger.error(f"❌ 상세 에러: {error_details}")
+        print(f"❌ [ERROR] 일정 이메일 전송 상세 오류:\n{error_details}")
+        
         raise HTTPException(
             status_code=500,
             detail=f"일정 이메일 전송 중 오류가 발생했습니다: {str(e)}"

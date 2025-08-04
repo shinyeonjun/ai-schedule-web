@@ -78,6 +78,23 @@ async def auth_status(current_user: Optional[Dict[str, Any]] = Depends(get_curre
         }
 
 
+@router.post("/verify")
+async def verify_token(current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)):
+    """Verify if the provided token is valid"""
+    if current_user:
+        return {
+            "valid": True,
+            "user_id": current_user["user_id"],
+            "email": current_user["email"],
+            "name": current_user["name"]
+        }
+    else:
+        return {
+            "valid": False,
+            "message": "Invalid or expired token"
+        }
+
+
 @router.post("/logout")
 async def logout():
     """Logout user (client-side token cleanup)"""

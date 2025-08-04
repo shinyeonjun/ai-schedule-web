@@ -19,6 +19,21 @@ class GmailService:
     
     def __init__(self):
         self.api_base_url = "https://gmail.googleapis.com/gmail/v1"
+        # ICS 파일 캐시 (파일 경로: 콘텐츠)
+        self._ics_cache = {}
+        self._max_cache_size = 100  # 최대 100개 파일 캐시
+    
+    def _manage_cache(self, file_path: str, content: str):
+        """캐시 크기 관리 및 새 항목 추가"""
+        # 캐시 크기 초과 시 가장 오래된 항목 제거 (FIFO)
+        if len(self._ics_cache) >= self._max_cache_size:
+            oldest_key = next(iter(self._ics_cache))
+            del self._ics_cache[oldest_key]
+            print(f"🗑️ 캐시 크기 초과로 오래된 항목 제거: {oldest_key}")
+        
+        # 새 항목 추가
+        self._ics_cache[file_path] = content
+        print(f"💾 캐시에 새 ICS 파일 저장: {file_path} (총 {len(self._ics_cache)}개)")
     
     async def send_email_with_ics(
         self,
@@ -53,20 +68,29 @@ class GmailService:
             body_part = MIMEText(body, 'html', 'utf-8')
             message.attach(body_part)
             
-            # ICS 파일 첨부
-            ics_attachment = MIMEApplication(
-                ics_content.encode('utf-8'),
-                _subtype='calendar',
-                _encoder=base64.b64encode
-            )
+            # ICS 파일 첨부 (MIMEBase 사용)
+            from email.mime.base import MIMEBase
+            from email import encoders
+            
+            ics_attachment = MIMEBase('text', 'calendar')
+            ics_attachment.set_payload(ics_content.encode('utf-8'))
+            encoders.encode_base64(ics_attachment)
+            
             ics_attachment.add_header(
                 'Content-Disposition',
                 f'attachment; filename="{ics_filename}"'
             )
             ics_attachment.add_header(
                 'Content-Type',
-                'text/calendar; charset=utf-8; method=REQUEST'
+                f'text/calendar; charset=utf-8; name="{ics_filename}"'
             )
+            
+            print(f"📎 ICS 첨부 파일 정보:")
+            print(f"📎 파일명: {ics_filename}")
+            print(f"📎 콘텐츠 길이: {len(ics_content)} 문자")
+            print(f"📎 Content-Type: text/calendar")
+            print(f"📎 콘텐츠 시작: {ics_content[:100]}...")
+            
             message.attach(ics_attachment)
             
             # Base64 인코딩
@@ -120,7 +144,12 @@ class GmailService:
                     "error_code": "SEND_FAILED"
                 }
         except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
             logger.error(f"❌ Gmail 서비스 오류: {e}")
+            logger.error(f"❌ 상세 에러: {error_details}")
+            print(f"❌ [ERROR] Gmail 전송 상세 오류:\n{error_details}")
+            
             return {
                 "success": False,
                 "error": f"이메일 전송 중 오류가 발생했습니다: {str(e)}",
@@ -191,6 +220,11 @@ class GmailService:
             </html>
             """
             
+            # 안전한 파일명 생성 (특수문자 제거)
+            import re
+            safe_filename = re.sub(r'[<>:"/\\|?*]', '_', schedule_title)
+            safe_filename = safe_filename.strip()[:50]  # 최대 50자로 제한
+            
             # 각 수신자에게 개별 전송
             for to_email in to_emails:
                 result = await self.send_email_with_ics(
@@ -199,7 +233,7 @@ class GmailService:
                     subject=f"📅 일정 초대: {schedule_title}",
                     body=email_body,
                     ics_content=ics_content,
-                    ics_filename=f"{schedule_title}.ics"
+                    ics_filename=f"{safe_filename}.ics"
                 )
                 results.append({
                     "email": to_email,
