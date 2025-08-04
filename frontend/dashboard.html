@@ -162,61 +162,79 @@
             <section id="members-section" class="content-section">
                 <div class="section-header">
                     <h1 class="section-title">인원 관리</h1>
-                    <p class="section-description">프로젝트 참여자들을 관리하고 역할을 할당할 수 있습니다.</p>
+                    <p class="section-description">MUFI에 등록된 사용자들을 확인할 수 있습니다.</p>
                 </div>
 
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">팀 멤버</h2>
-                        <button class="btn btn-primary" id="addMemberBtn">
-                            <i class="fas fa-plus"></i> 멤버 추가
-                        </button>
-                    </div>
-                    
-                    <div class="members-container" id="membersContainer">
-                        <div class="placeholder-content">
-                            <div class="placeholder-icon">
-                                <i class="fas fa-users"></i>
+                <!-- 탭 메뉴 -->
+                <div class="members-tabs">
+                    <button class="tab-button active" data-tab="mufi-users">
+                        <i class="fas fa-users"></i> MUFI 사용자
+                    </button>
+                    <button class="tab-button" data-tab="external-contacts">
+                        <i class="fas fa-address-book"></i> 외부 인원
+                    </button>
+                </div>
+
+                <!-- MUFI 사용자 탭 -->
+                <div class="tab-content active" id="mufi-users-tab">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">MUFI 등록 사용자</h2>
+                        </div>
+                        
+                        <div class="members-container" id="membersContainer">
+                            <div class="loading-placeholder" id="membersLoading">
+                                <div class="loading-spinner"></div>
+                                <p>사용자 목록을 불러오는 중...</p>
                             </div>
-                            <h3>등록된 멤버가 없습니다</h3>
-                            <p>새 멤버를 추가하여 팀을 구성해보세요.</p>
+                            
+                            <div class="users-grid" id="usersGrid" style="display: none;">
+                                <!-- 사용자 카드들이 여기에 동적으로 추가됩니다 -->
+                            </div>
+                            
+                            <div class="placeholder-content" id="emptyPlaceholder" style="display: none;">
+                                <div class="placeholder-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <h3>등록된 사용자가 없습니다</h3>
+                                <p>첫 번째 사용자가 되어보세요!</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="card">
-                    <h2 class="card-title">역할 관리</h2>
-                    <div class="roles-grid" id="rolesGrid">
-                        <div class="role-card">
-                            <div class="role-info">
-                                <h4>프로젝트 매니저</h4>
-                                <p>프로젝트 전체 관리 및 일정 조율</p>
-                            </div>
-                            <div class="role-count">0명</div>
+                <!-- 외부 인원 탭 -->
+                <div class="tab-content" id="external-contacts-tab">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">외부 인원 관리</h2>
+                            <button class="btn btn-primary" id="addContactBtn">
+                                <i class="fas fa-plus"></i> 외부 인원 추가
+                            </button>
                         </div>
-                        <div class="role-card">
-                            <div class="role-info">
-                                <h4>개발자</h4>
-                                <p>시스템 개발 및 구현</p>
+                        
+                        <div class="contacts-container" id="contactsContainer">
+                            <div class="loading-placeholder" id="contactsLoading" style="display: none;">
+                                <div class="loading-spinner"></div>
+                                <p>외부 인원 목록을 불러오는 중...</p>
                             </div>
-                            <div class="role-count">0명</div>
-                        </div>
-                        <div class="role-card">
-                            <div class="role-info">
-                                <h4>디자이너</h4>
-                                <p>UI/UX 디자인 및 브랜딩</p>
+                            
+                            <div class="contacts-grid" id="contactsGrid" style="display: none;">
+                                <!-- 외부 인원 카드들이 여기에 동적으로 추가됩니다 -->
                             </div>
-                            <div class="role-count">0명</div>
-                        </div>
-                        <div class="role-card">
-                            <div class="role-info">
-                                <h4>분석가</h4>
-                                <p>데이터 분석 및 인사이트 도출</p>
+                            
+                            <div class="placeholder-content" id="contactsEmptyPlaceholder">
+                                <div class="placeholder-icon">
+                                    <i class="fas fa-address-book"></i>
+                                </div>
+                                <h3>등록된 외부 인원이 없습니다</h3>
+                                <p>새로운 외부 인원을 추가해보세요.</p>
                             </div>
-                            <div class="role-count">0명</div>
                         </div>
                     </div>
                 </div>
+
+
             </section>
         </main>
     </div>
@@ -271,9 +289,25 @@
                                         type="text" 
                                         class="email-input" 
                                         id="emailInput"
-                                        placeholder="이메일 주소를 입력하세요 (예: user@example.com)"
-                                        autocomplete="email"
+                                        placeholder="이름 또는 이메일로 검색하세요..."
+                                        autocomplete="off"
                                     >
+                                    <div class="email-search-icon">
+                                        <i class="fas fa-search"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="email-dropdown" id="emailDropdown" style="display: none;">
+                                <div class="email-dropdown-header">
+                                    <span class="dropdown-section-title">
+                                        <i class="fas fa-users"></i> 인원 선택
+                                    </span>
+                                </div>
+                                <div class="email-dropdown-content" id="emailDropdownContent">
+                                    <!-- 검색 결과가 여기에 표시됩니다 -->
+                                </div>
+                                <div class="email-dropdown-footer">
+                                    <small class="text-muted">직접 이메일 입력 후 Enter를 누르면 추가됩니다</small>
                                 </div>
                             </div>
                             <div class="email-suggestions" id="emailSuggestions"></div>

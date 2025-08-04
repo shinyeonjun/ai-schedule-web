@@ -118,6 +118,10 @@ class MUFIDashboard {
             // Google 인증 콜백 체크
             this.checkGoogleAuthCallback();
             
+            // 인원 관리 섹션 로드
+            this.loadUsersWhenNeeded();
+            this.initMembersTabs();
+            
             this.hideLoading();
             console.log('🎉 대시보드 초기화 완료!');
             this.showToast('환영합니다! MUFI에서 통화 내용을 스마트하게 분석해보세요 🚀', 'info');
@@ -824,7 +828,16 @@ class MUFIDashboard {
             try {
                 const credentials = JSON.parse(decodeURIComponent(googleCredentials));
                 this.setGoogleCredentials(credentials);
-                console.log('✅ Google Calendar 토큰 자동 저장 완료');
+                console.log('✅ Google Calendar 토큰 localStorage 저장 완료');
+                
+                // DB에도 저장 (잠시 후 실행 - config 초기화 대기)
+                setTimeout(() => {
+                    this.storeGoogleTokensInDatabase(credentials).then(() => {
+                        console.log('✅ Google 토큰 DB 저장 완료');
+                    }).catch(error => {
+                        console.error('❌ Google 토큰 DB 저장 실패:', error);
+                    });
+                }, 1000);
             } catch (error) {
                 console.error('❌ Google Calendar 토큰 파싱 실패:', error);
             }
@@ -2750,8 +2763,8 @@ class MUFIDashboardExtension extends MUFIDashboard {
     // Google Calendar에 일정 추가
     async addToGoogleCalendar(scheduleId) {
         try {
-            // Google 인증 상태 확인
-            const googleCredentials = this.getGoogleCredentials();
+            // Google 인증 상태 확인 (DB에서 자동 갱신 포함)
+            const googleCredentials = await this.getValidGoogleCredentials();
             
             if (!googleCredentials) {
                 // Google 인증이 필요한 경우
@@ -2835,6 +2848,839 @@ class MUFIDashboardExtension extends MUFIDashboard {
         }
     }
 
+    // Google 토큰을 DB에 저장
+    async storeGoogleTokensInDatabase(credentials) {
+        try {
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/auth/google/store-tokens`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    google_credentials: credentials
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            console.log('✅ Google 토큰 DB 저장 성공:', result);
+            return result;
+        } catch (error) {
+            console.error('❌ Google 토큰 DB 저장 실패:', error);
+            throw error;
+        }
+    }
+
+    // DB에서 Google 토큰 가져오기 (자동 갱신 포함)
+    async fetchGoogleTokensFromDatabase() {
+        try {
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/auth/google/tokens`);
+
+            if (!response.ok) {
+                if (response.status === 404) {
+                    console.log('📭 DB에 Google 토큰이 없음');
+                    return null;
+                }
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            console.log('✅ DB에서 Google 토큰 가져오기 성공');
+            return result.tokens;
+        } catch (error) {
+            console.error('❌ DB에서 Google 토큰 가져오기 실패:', error);
+            return null;
+        }
+    }
+
+    // 유효한 Google 인증 정보 가져오기 (localStorage → DB 순으로 시도)
+    async getValidGoogleCredentials() {
+        try {
+            console.log('🔍 [DEBUG] Google 토큰 가져오기 시작');
+            
+            // 1. localStorage에서 먼저 확인
+            const localCredentials = this.getGoogleCredentials();
+            if (localCredentials) {
+                console.log('📱 localStorage에서 Google 토큰 사용');
+                console.log('📱 [DEBUG] Local 토큰 정보:', {
+                    hasAccessToken: !!localCredentials.access_token,
+                    scopes: localCredentials.scopes
+                });
+                return localCredentials;
+            }
+
+            // 2. DB에서 가져오기 (자동 갱신 포함)
+            console.log('🗄️ DB에서 Google 토큰 조회 시도');
+            const dbTokens = await this.fetchGoogleTokensFromDatabase();
+            if (dbTokens) {
+                console.log('🗄️ DB에서 Google 토큰 사용');
+                console.log('🗄️ [DEBUG] DB 토큰 정보:', {
+                    hasAccessToken: !!dbTokens.access_token,
+                    expiresAt: dbTokens.expires_at,
+                    scopes: dbTokens.scopes
+                });
+                
+                // localStorage에도 저장 (캐시 목적)
+                const credentialsForStorage = {
+                    access_token: dbTokens.access_token,
+                    scopes: dbTokens.scopes
+                };
+                this.setGoogleCredentials(credentialsForStorage);
+                
+                return credentialsForStorage;
+            }
+
+            // DB에서 토큰을 가져올 수 없으면 localStorage의 토큰도 만료된 것일 수 있음
+            if (localCredentials) {
+                console.log('🗑️ DB에 토큰이 없으므로 localStorage 토큰 정리');
+                this.clearGoogleCredentials();
+            }
+
+            console.log('❌ 유효한 Google 토큰을 찾을 수 없음');
+            return null;
+        } catch (error) {
+            console.error('❌ Google 토큰 가져오기 실패:', error);
+            return null;
+        }
+    }
+
+    // 토큰 디버깅 정보 표시
+    async debugTokenStatus() {
+        try {
+            console.log('🔍 [DEBUG] 토큰 상태 디버깅 시작');
+            
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/auth/google/tokens`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('🔍 [DEBUG] 서버 토큰 상태:', data);
+                
+                if (data.debug_info) {
+                    console.log('🔍 [DEBUG] 디버그 정보:', data.debug_info);
+                }
+                
+                return data;
+            } else {
+                console.log('❌ [DEBUG] 토큰 상태 조회 실패:', response.status);
+                return null;
+            }
+        } catch (error) {
+            console.error('❌ [DEBUG] 토큰 디버깅 실패:', error);
+            return null;
+        }
+    }
+
+    // 인원 관리 섹션 로드 (필요할 때만)
+    loadUsersWhenNeeded() {
+        const membersSection = document.getElementById('members-section');
+        if (membersSection) {
+            // 인원 관리 탭 클릭 시 사용자 목록 로드
+            const memberNavLink = document.querySelector('.nav-link[data-section="members"]');
+            if (memberNavLink) {
+                memberNavLink.addEventListener('click', () => {
+                    setTimeout(() => this.loadUsersList(), 100);
+                });
+            }
+        }
+    }
+
+    // 사용자 목록 로드
+    async loadUsersList() {
+        const usersGrid = document.getElementById('usersGrid');
+        const membersLoading = document.getElementById('membersLoading');
+        const emptyPlaceholder = document.getElementById('emptyPlaceholder');
+        
+        if (!usersGrid || !membersLoading) return;
+
+        try {
+            // 로딩 표시
+            membersLoading.style.display = 'block';
+            usersGrid.style.display = 'none';
+            emptyPlaceholder.style.display = 'none';
+
+            // API 호출
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/members/list`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log('👥 사용자 목록 로드 완료:', data);
+
+            // 로딩 숨기기
+            membersLoading.style.display = 'none';
+
+            if (!data.users || data.users.length === 0) {
+                emptyPlaceholder.style.display = 'block';
+                return;
+            }
+
+            // 사용자 카드 생성
+            this.renderUserCards(data.users);
+            usersGrid.style.display = 'grid';
+
+        } catch (error) {
+            console.error('❌ 사용자 목록 로드 실패:', error);
+            membersLoading.style.display = 'none';
+            emptyPlaceholder.style.display = 'block';
+            this.showToast(`사용자 목록 로드 실패: ${error.message}`, 'error');
+        }
+    }
+
+    // 사용자 카드 렌더링
+    renderUserCards(users) {
+        const usersGrid = document.getElementById('usersGrid');
+        if (!usersGrid) return;
+
+        usersGrid.innerHTML = '';
+
+        users.forEach(user => {
+            const userCard = this.createUserCard(user);
+            usersGrid.appendChild(userCard);
+        });
+    }
+
+    // 개별 사용자 카드 생성
+    createUserCard(user) {
+        const card = document.createElement('div');
+        card.className = 'user-card';
+
+        // 사용자 이름 첫 글자 추출 (아바타 플레이스홀더용)
+        const initials = user.name ? user.name.charAt(0).toUpperCase() : '?';
+        
+        // 날짜 포맷팅
+        const createdDate = user.created_at ? new Date(user.created_at).toLocaleDateString('ko-KR') : '정보 없음';
+        const lastLoginDate = user.last_login_at ? new Date(user.last_login_at).toLocaleDateString('ko-KR') : '정보 없음';
+        
+        // 현재 사용자인지 확인
+        const isCurrentUser = this.userInfo && this.userInfo.user_id === user.id;
+
+        card.innerHTML = `
+            <div class="user-card-header">
+                <div class="user-card-avatar">
+                    ${user.picture ? 
+                        `<img src="${user.picture}" alt="${user.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                         <div class="user-card-avatar-placeholder" style="display: none;">${initials}</div>` :
+                        `<div class="user-card-avatar-placeholder">${initials}</div>`
+                    }
+                </div>
+                <div class="user-card-info">
+                    <div class="user-card-name">${user.name || '이름 없음'}</div>
+                    <div class="user-card-email">${user.email || '이메일 없음'}</div>
+                </div>
+            </div>
+            <div class="user-card-details">
+                <div class="user-card-detail">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>가입일: ${createdDate}</span>
+                </div>
+                <div class="user-card-detail">
+                    <i class="fas fa-clock"></i>
+                    <span>최근 로그인: ${lastLoginDate}</span>
+                </div>
+                ${isCurrentUser ? 
+                    '<div class="user-status current-user"><i class="fas fa-star"></i>현재 사용자</div>' :
+                    '<div class="user-status"><i class="fas fa-user"></i>등록된 사용자</div>'
+                }
+            </div>
+        `;
+
+        return card;
+    }
+
+    // 멤버 탭 시스템 초기화
+    initMembersTabs() {
+        const tabButtons = document.querySelectorAll('.members-tabs .tab-button');
+        const addContactBtn = document.getElementById('addContactBtn');
+
+        // 탭 버튼 이벤트
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const tabName = button.getAttribute('data-tab');
+                this.switchMembersTab(tabName);
+            });
+        });
+
+        // 외부 인원 추가 버튼 이벤트
+        if (addContactBtn) {
+            addContactBtn.addEventListener('click', () => {
+                this.showContactModal();
+            });
+        }
+    }
+
+    // 탭 전환
+    switchMembersTab(tabName) {
+        // 탭 버튼 활성화 상태 변경
+        document.querySelectorAll('.members-tabs .tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+        // 탭 콘텐츠 표시/숨김
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.getElementById(`${tabName}-tab`).classList.add('active');
+
+        // 탭별 데이터 로드
+        if (tabName === 'mufi-users') {
+            this.loadUsersList();
+        } else if (tabName === 'external-contacts') {
+            this.loadContactsList();
+        }
+    }
+
+    // 외부 인원 목록 로드
+    async loadContactsList() {
+        const contactsGrid = document.getElementById('contactsGrid');
+        const contactsLoading = document.getElementById('contactsLoading');
+        const contactsEmptyPlaceholder = document.getElementById('contactsEmptyPlaceholder');
+        
+        if (!contactsGrid || !contactsLoading) return;
+
+        try {
+            // 로딩 표시
+            contactsLoading.style.display = 'block';
+            contactsGrid.style.display = 'none';
+            contactsEmptyPlaceholder.style.display = 'none';
+
+            // API 호출
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/members/contacts`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log('📋 외부 인원 목록 로드 완료:', data);
+
+            // 로딩 숨기기
+            contactsLoading.style.display = 'none';
+
+            if (!data.contacts || data.contacts.length === 0) {
+                contactsEmptyPlaceholder.style.display = 'block';
+                return;
+            }
+
+            // 외부 인원 카드 생성
+            this.renderContactCards(data.contacts);
+            contactsGrid.style.display = 'grid';
+
+        } catch (error) {
+            console.error('❌ 외부 인원 목록 로드 실패:', error);
+            contactsLoading.style.display = 'none';
+            contactsEmptyPlaceholder.style.display = 'block';
+            this.showToast(`외부 인원 목록 로드 실패: ${error.message}`, 'error');
+        }
+    }
+
+    // 외부 인원 카드 렌더링
+    renderContactCards(contacts) {
+        const contactsGrid = document.getElementById('contactsGrid');
+        if (!contactsGrid) return;
+
+        contactsGrid.innerHTML = '';
+
+        contacts.forEach(contact => {
+            const contactCard = this.createContactCard(contact);
+            contactsGrid.appendChild(contactCard);
+        });
+    }
+
+    // 개별 외부 인원 카드 생성
+    createContactCard(contact) {
+        const card = document.createElement('div');
+        card.className = 'contact-card';
+
+        // 이름 첫 글자 추출 (아바타용)
+        const initials = contact.name ? contact.name.charAt(0).toUpperCase() : '?';
+        
+        // 날짜 포맷팅
+        const createdDate = contact.created_at ? new Date(contact.created_at).toLocaleDateString('ko-KR') : '정보 없음';
+
+        card.innerHTML = `
+            <div class="contact-card-header">
+                <div class="contact-card-avatar">${initials}</div>
+                <div class="contact-card-info">
+                    <div class="contact-card-name">${contact.name || '이름 없음'}</div>
+                    ${contact.position ? `<div class="contact-card-position">${contact.position}</div>` : '<div class="contact-card-position">직급 없음</div>'}
+                </div>
+            </div>
+            <div class="contact-card-details">
+                <div class="contact-card-detail">
+                    <i class="fas fa-envelope"></i>
+                    <span>${contact.email || '이메일 없음'}</span>
+                </div>
+                <div class="contact-card-detail">
+                    <i class="fas fa-calendar-plus"></i>
+                    <span>등록일: ${createdDate}</span>
+                </div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="btn btn-edit" onclick="dashboard.editContact('${contact.id}')">
+                    <i class="fas fa-edit"></i> 수정
+                </button>
+                <button class="btn btn-delete" onclick="dashboard.deleteContact('${contact.id}')">
+                    <i class="fas fa-trash"></i> 삭제
+                </button>
+            </div>
+        `;
+
+        return card;
+    }
+
+    // 외부 인원 추가/수정 모달 표시
+    showContactModal(contact = null) {
+        const isEdit = !!contact;
+        
+        const modalContent = `
+            <div class="contact-modal">
+                <form id="contactForm" class="contact-form">
+                    <div class="form-group">
+                        <label>이름 *</label>
+                        <input type="text" id="contactName" value="${contact?.name || ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>직급/직책 *</label>
+                        <input type="text" id="contactPosition" value="${contact?.position || ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>이메일 *</label>
+                        <input type="email" id="contactEmail" value="${contact?.email || ''}" required>
+                    </div>
+                    <div class="modal-buttons">
+                        <button type="button" class="btn btn-secondary" onclick="dashboard.hideModal()">취소</button>
+                        <button type="submit" class="btn btn-primary">
+                            ${isEdit ? '수정' : '추가'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        this.showModal(isEdit ? '외부 인원 수정' : '외부 인원 추가', modalContent);
+
+        // DOM이 준비된 후에 이벤트 리스너 추가
+        setTimeout(() => {
+            const form = document.getElementById('contactForm');
+            if (form) {
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    if (isEdit) {
+                        this.updateContact(contact.id);
+                    } else {
+                        this.createContact();
+                    }
+                });
+            }
+        }, 100);
+    }
+
+    // 외부 인원 생성
+    async createContact() {
+        try {
+            const formData = new FormData();
+            formData.append('name', document.getElementById('contactName').value);
+            formData.append('position', document.getElementById('contactPosition').value);
+            formData.append('email', document.getElementById('contactEmail').value);
+
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/members/contacts`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('외부 인원 추가에 실패했습니다.');
+            }
+
+            this.hideModal();
+            this.showToast('외부 인원이 성공적으로 추가되었습니다!', 'success');
+            this.loadContactsList();
+
+        } catch (error) {
+            console.error('외부 인원 추가 실패:', error);
+            this.showToast(`추가 실패: ${error.message}`, 'error');
+        }
+    }
+
+    // 외부 인원 수정
+    async updateContact(contactId) {
+        try {
+            const formData = new FormData();
+            formData.append('name', document.getElementById('contactName').value);
+            formData.append('position', document.getElementById('contactPosition').value);
+            formData.append('email', document.getElementById('contactEmail').value);
+
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/members/contacts/${contactId}`, {
+                method: 'PUT',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('외부 인원 수정에 실패했습니다.');
+            }
+
+            this.hideModal();
+            this.showToast('외부 인원 정보가 성공적으로 수정되었습니다!', 'success');
+            this.loadContactsList();
+
+        } catch (error) {
+            console.error('외부 인원 수정 실패:', error);
+            this.showToast(`수정 실패: ${error.message}`, 'error');
+        }
+    }
+
+    // 외부 인원 수정 모달 표시
+    async editContact(contactId) {
+        try {
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/members/contacts`);
+            const data = await response.json();
+            const contact = data.contacts.find(c => c.id === contactId);
+            
+            if (contact) {
+                this.showContactModal(contact);
+            } else {
+                throw new Error('외부 인원 정보를 찾을 수 없습니다.');
+            }
+        } catch (error) {
+            this.showToast(`수정 실패: ${error.message}`, 'error');
+        }
+    }
+
+    // 외부 인원 삭제
+    async deleteContact(contactId) {
+        if (!confirm('정말로 이 외부 인원을 삭제하시겠습니까?')) {
+            return;
+        }
+
+        try {
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/members/contacts/${contactId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error('외부 인원 삭제에 실패했습니다.');
+            }
+
+            this.showToast('외부 인원이 성공적으로 삭제되었습니다!', 'success');
+            this.loadContactsList();
+
+        } catch (error) {
+            console.error('외부 인원 삭제 실패:', error);
+            this.showToast(`삭제 실패: ${error.message}`, 'error');
+        }
+    }
+
+    // 이메일 드롭다운 초기화
+    initializeEmailDropdown() {
+        this.allPeople = [];
+        this.filteredPeople = [];
+        this.loadAllPeople();
+        
+        const emailInput = document.getElementById('emailInput');
+        const dropdown = document.getElementById('emailDropdown');
+        
+        if (!emailInput || !dropdown) return;
+        
+        // 검색 입력 이벤트
+        emailInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            this.filterPeople(query);
+        });
+        
+        // 포커스 이벤트 - 입력이 활성화되면 무조건 드롭다운 표시
+        emailInput.addEventListener('focus', () => {
+            this.showEmailDropdownIfPossible(emailInput.value.trim());
+        });
+
+        // 클릭 이벤트로도 드롭다운 활성화
+        emailInput.addEventListener('click', () => {
+            this.showEmailDropdownIfPossible(emailInput.value.trim());
+        });
+        
+        // 외부 클릭 시 드롭다운 숨기기 (이메일 입력 영역 외부만)
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.email-recipients') && !e.target.closest('#emailDropdown')) {
+                this.hideEmailDropdown();
+            }
+        });
+        
+        // 키보드 네비게이션
+        emailInput.addEventListener('keydown', (e) => {
+            this.handleEmailKeydown(e);
+        });
+    }
+    
+    // 모든 인원 데이터 로드
+    async loadAllPeople() {
+        try {
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/members/all-people`);
+            if (!response.ok) {
+                throw new Error('인원 데이터 로드에 실패했습니다.');
+            }
+            
+            const data = await response.json();
+            this.allPeople = data.people || [];
+            console.log('📋 인원 데이터 로드 완료:', this.allPeople.length + '명');
+            
+        } catch (error) {
+            console.error('❌ 인원 데이터 로드 실패:', error);
+            this.allPeople = [];
+        }
+    }
+    
+    // 인원 필터링
+    filterPeople(query) {
+        if (!query) {
+            this.filteredPeople = this.allPeople.slice(0, 10); // 최대 10개만 표시
+        } else {
+            const lowerQuery = query.toLowerCase();
+            this.filteredPeople = this.allPeople.filter(person => {
+                const name = (person.name || '').toLowerCase();
+                const email = (person.email || '').toLowerCase();
+                const displayName = (person.display_name || '').toLowerCase();
+                
+                return name.includes(lowerQuery) || 
+                       email.includes(lowerQuery) || 
+                       displayName.includes(lowerQuery);
+            }).slice(0, 10);
+        }
+        
+        this.renderEmailDropdown();
+    }
+    
+    // 드롭다운 렌더링
+    renderEmailDropdown() {
+        const dropdownContent = document.getElementById('emailDropdownContent');
+        if (!dropdownContent) return;
+        
+        dropdownContent.innerHTML = '';
+        
+        if (this.filteredPeople.length === 0) {
+            dropdownContent.innerHTML = `
+                <div class="email-dropdown-empty">
+                    <i class="fas fa-search"></i>
+                    검색 결과가 없습니다
+                </div>
+            `;
+            return;
+        }
+        
+        this.filteredPeople.forEach((person, index) => {
+            const item = this.createDropdownItem(person, index);
+            dropdownContent.appendChild(item);
+        });
+    }
+    
+    // 드롭다운 아이템 생성
+    createDropdownItem(person, index) {
+        const item = document.createElement('button');
+        item.className = 'email-dropdown-item';
+        item.setAttribute('data-index', index);
+        item.type = 'button';
+        
+        const avatar = person.picture 
+            ? `<div class="email-dropdown-avatar"><img src="${person.picture}" alt="${person.name}"></div>`
+            : `<div class="email-dropdown-avatar-placeholder">${(person.name || person.email || '?').charAt(0).toUpperCase()}</div>`;
+        
+        const typeClass = person.type === 'mufi_user' ? 'mufi-user' : 'external-contact';
+        const typeText = person.type === 'mufi_user' ? 'MUFI' : '외부';
+        
+        item.innerHTML = `
+            ${avatar}
+            <div class="email-dropdown-info">
+                <div class="email-dropdown-name">${person.display_name || person.email}</div>
+                <div class="email-dropdown-details">
+                    <div class="email-dropdown-email">${person.email}</div>
+                    <div class="email-dropdown-subtitle">
+                        <span class="email-dropdown-type ${typeClass}">${typeText}</span>
+                        ${person.subtitle}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 클릭 이벤트
+        item.addEventListener('click', () => {
+            this.selectPerson(person);
+        });
+        
+        return item;
+    }
+    
+    // 인원 선택
+    selectPerson(person) {
+        const emailInput = document.getElementById('emailInput');
+        if (!emailInput) return;
+        
+        // 이메일을 태그로 추가
+        this.addEmailTag(person.email, person.display_name);
+        
+        // 입력 필드 초기화하고 포커스 유지
+        emailInput.value = '';
+        emailInput.focus();
+        
+        // 드롭다운은 계속 표시 (전체 리스트로 다시 표시)
+        this.filterPeople('');
+        this.showEmailDropdown(); // 명시적으로 드롭다운 표시 유지
+    }
+
+    // 드롭다운 표시 가능할 때만 표시하는 헬퍼 함수
+    showEmailDropdownIfPossible(query) {
+        if (this.allPeople.length > 0) {
+            this.showEmailDropdown();
+            this.filterPeople(query);
+        } else {
+            // 데이터가 아직 없으면 다시 로드
+            this.loadAllPeople().then(() => {
+                if (this.allPeople.length > 0) {
+                    this.showEmailDropdown();
+                    this.filterPeople(query);
+                }
+            });
+        }
+    }
+    
+    // 이메일 태그 추가 (기존 기능 활용)
+    addEmailTag(email, displayName = null) {
+        const emailTags = document.getElementById('emailTags');
+        const emailInput = document.getElementById('emailInput');
+        
+        if (!emailTags || !email) return;
+        
+        // 중복 체크
+        const existingTags = emailTags.querySelectorAll('.email-tag');
+        for (const tag of existingTags) {
+            if (tag.dataset.email === email) {
+                this.showToast('이미 추가된 이메일입니다.', 'warning');
+                // 중복이어도 포커스와 드롭다운 유지
+                const emailInput = document.getElementById('emailInput');
+                if (emailInput) {
+                    emailInput.focus();
+                    this.showEmailDropdown();
+                    this.filterPeople(''); // 전체 리스트 다시 표시
+                }
+                return;
+            }
+        }
+        
+        // 태그 생성
+        const tag = document.createElement('div');
+        tag.className = 'email-tag';
+        tag.dataset.email = email;
+        
+        const showName = displayName && displayName !== email ? `${displayName} (${email})` : email;
+        
+        tag.innerHTML = `
+            <span class="email-tag-text">${showName}</span>
+            <button type="button" class="email-tag-remove">×</button>
+        `;
+        
+        // 삭제 버튼 이벤트
+        tag.querySelector('.email-tag-remove').addEventListener('click', () => {
+            tag.remove();
+        });
+        
+        // 입력 필드 앞에 삽입
+        const inputWrapper = emailTags.querySelector('.email-input-wrapper');
+        emailTags.insertBefore(tag, inputWrapper);
+        
+        // 태그 추가 후에도 포커스와 드롭다운 유지
+        const emailInputAfter = document.getElementById('emailInput');
+        if (emailInputAfter) {
+            emailInputAfter.focus();
+            this.showEmailDropdown();
+            this.filterPeople(''); // 전체 리스트 다시 표시
+        }
+    }
+    
+    // 드롭다운 표시
+    showEmailDropdown() {
+        const dropdown = document.getElementById('emailDropdown');
+        if (dropdown) {
+            dropdown.style.display = 'block';
+        }
+    }
+    
+    // 드롭다운 숨기기
+    hideEmailDropdown() {
+        const dropdown = document.getElementById('emailDropdown');
+        if (dropdown) {
+            dropdown.style.display = 'none';
+        }
+    }
+    
+    // 키보드 네비게이션
+    handleEmailKeydown(e) {
+        const dropdown = document.getElementById('emailDropdown');
+        if (!dropdown || dropdown.style.display === 'none') return;
+        
+        const items = dropdown.querySelectorAll('.email-dropdown-item');
+        const currentSelected = dropdown.querySelector('.email-dropdown-item.selected');
+        let selectedIndex = currentSelected ? parseInt(currentSelected.dataset.index) : -1;
+        
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                this.highlightDropdownItem(selectedIndex);
+                break;
+                
+            case 'ArrowUp':
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, 0);
+                this.highlightDropdownItem(selectedIndex);
+                break;
+                
+            case 'Enter':
+                e.preventDefault();
+                if (selectedIndex >= 0 && this.filteredPeople[selectedIndex]) {
+                    this.selectPerson(this.filteredPeople[selectedIndex]);
+                } else {
+                    // 직접 이메일 입력 처리
+                    const email = e.target.value.trim();
+                    if (email && this.isValidEmail(email)) {
+                        this.addEmailTag(email);
+                        e.target.value = '';
+                        // 드롭다운 유지하고 전체 리스트 표시
+                        this.filterPeople('');
+                        this.showEmailDropdown(); // 명시적으로 드롭다운 유지
+                    }
+                }
+                break;
+                
+            case 'Escape':
+                e.preventDefault();
+                this.hideEmailDropdown();
+                break;
+        }
+    }
+    
+    // 드롭다운 아이템 하이라이트
+    highlightDropdownItem(index) {
+        const dropdown = document.getElementById('emailDropdown');
+        if (!dropdown) return;
+        
+        const items = dropdown.querySelectorAll('.email-dropdown-item');
+        items.forEach(item => item.classList.remove('selected'));
+        
+        if (index >= 0 && index < items.length) {
+            items[index].classList.add('selected');
+            items[index].scrollIntoView({ block: 'nearest' });
+        }
+    }
+    
+    // 이메일 유효성 검사
+    isValidEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+
     // Google 인증 모달 표시
     showGoogleAuthModal(scheduleId) {
         const modalContent = `
@@ -2900,10 +3746,184 @@ class MUFIDashboardExtension extends MUFIDashboard {
                 }, 1000);
             }
             
+            // 대기 중인 이메일 전송이 있으면 처리
+            const pendingEmail = localStorage.getItem('pending_email_data');
+            if (pendingEmail) {
+                localStorage.removeItem('pending_email_data');
+                try {
+                    const emailData = JSON.parse(pendingEmail);
+                    // 잠시 후 이메일 재시도
+                    setTimeout(() => {
+                        this.retryEmailAfterAuth(emailData);
+                    }, 1000);
+                } catch (e) {
+                    console.error('대기 중인 이메일 데이터 파싱 실패:', e);
+                }
+            }
+            
             // URL 파라미터 정리
             const newUrl = window.location.pathname;
             window.history.replaceState({}, document.title, newUrl);
         }
+    }
+
+    // Google 인증 오류 처리
+    async handleGoogleAuthError() {
+        console.log('🔄 Google 인증 오류 처리 시작');
+        
+        // 먼저 자동 토큰 갱신 시도
+        console.log('🔄 자동 토큰 갱신 시도...');
+        const refreshResult = await this.forceRefreshGoogleTokens();
+        
+        if (refreshResult.success) {
+            console.log('✅ 토큰 갱신 성공! 이메일 재전송 시도');
+            this.showToast('Google 인증이 갱신되었습니다. 이메일을 다시 전송합니다.', 'success');
+            
+            // 잠시 후 이메일 재전송
+            setTimeout(() => {
+                const sendButton = document.querySelector('#sendEmailBtn');
+                if (sendButton) {
+                    sendButton.click();
+                }
+            }, 1000);
+            return;
+        }
+        
+        console.log('❌ 자동 토큰 갱신 실패, 수동 재인증 필요');
+        this.showGoogleReauthModal();
+    }
+    
+    // 강제 Google 토큰 갱신
+    async forceRefreshGoogleTokens() {
+        try {
+            console.log('🔄 [DEBUG] 강제 토큰 갱신 요청');
+            
+            const response = await this.authenticatedFetch('/api/auth/google/force-refresh', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.success) {
+                console.log('✅ [DEBUG] 강제 토큰 갱신 성공');
+                
+                // localStorage의 토큰도 새로 가져오기
+                const newTokens = await this.fetchGoogleTokensFromDatabase();
+                if (newTokens) {
+                    const credentialsForStorage = {
+                        access_token: newTokens.access_token,
+                        scopes: newTokens.scopes
+                    };
+                    this.setGoogleCredentials(credentialsForStorage);
+                    console.log('✅ [DEBUG] localStorage 토큰도 업데이트 완료');
+                }
+                
+                return { success: true };
+            } else {
+                console.log('❌ [DEBUG] 강제 토큰 갱신 실패');
+                return { success: false, error: response.message };
+            }
+            
+        } catch (error) {
+            console.error('❌ [DEBUG] 강제 토큰 갱신 오류:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    // Google 재인증 모달 표시
+    showGoogleReauthModal() {
+        const modalContent = `
+            <div class="google-reauth-modal">
+                <div class="google-auth-icon">
+                    <i class="fas fa-exclamation-triangle" style="color: #f59e0b;"></i>
+                </div>
+                <h3>Google 인증 만료</h3>
+                <p>Google 인증이 만료되어 이메일을 발송할 수 없습니다.</p>
+                <p>Google 계정과 다시 연동하시겠습니까?</p>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="dashboard.hideModal()">취소</button>
+                    <button type="button" class="btn btn-primary" onclick="dashboard.startGoogleReauth()">
+                        <i class="fab fa-google"></i>
+                        다시 연동하기
+                    </button>
+                </div>
+            </div>
+        `;
+
+        this.showModal('Google 재인증 필요', modalContent);
+    }
+
+    // Google 재인증 시작
+    async startGoogleReauth() {
+        try {
+            this.hideModal();
+            this.showLoading('Google 재인증 페이지로 이동 중...');
+
+            // 현재 이메일 전송 데이터를 임시 저장
+            const emailData = {
+                subject: document.getElementById('emailSubject')?.value,
+                content: document.getElementById('emailContent')?.value,
+                emails: this.emailList ? [...this.emailList] : [],
+                timestamp: Date.now()
+            };
+            localStorage.setItem('pending_email_data', JSON.stringify(emailData));
+
+            // Google 인증 정보 초기화
+            this.clearGoogleCredentials();
+
+            // Google 인증 URL로 리다이렉트
+            const authUrl = `${this.config.apiBaseUrl}/api/auth/google?user_id=${this.userInfo.user_id}&force_reauth=true`;
+            window.location.href = authUrl;
+
+        } catch (error) {
+            console.error('Google 재인증 시작 실패:', error);
+            this.showToast(`Google 재인증 실패: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    // 인증 후 이메일 재시도
+    async retryEmailAfterAuth(emailData) {
+        try {
+            if (!emailData || Date.now() - emailData.timestamp > 600000) { // 10분 초과
+                this.showToast('저장된 이메일 데이터가 만료되었습니다. 다시 작성해주세요.', 'warning');
+                return;
+            }
+
+            // 이메일 모달 복원
+            const subjectInput = document.getElementById('emailSubject');
+            const contentTextarea = document.getElementById('emailContent');
+            
+            if (subjectInput) subjectInput.value = emailData.subject || '';
+            if (contentTextarea) contentTextarea.value = emailData.content || '';
+            
+            // 이메일 리스트 복원
+            this.emailList = emailData.emails || [];
+            this.restoreEmailTags();
+
+            this.showToast('Google 재인증이 완료되었습니다. 이메일을 다시 전송해주세요.', 'success');
+
+        } catch (error) {
+            console.error('이메일 데이터 복원 실패:', error);
+            this.showToast('이메일 데이터 복원에 실패했습니다. 다시 작성해주세요.', 'warning');
+        }
+    }
+
+    // 이메일 태그 복원
+    restoreEmailTags() {
+        const emailTags = document.getElementById('emailTags');
+        if (!emailTags) return;
+
+        // 기존 태그 제거
+        const existingTags = emailTags.querySelectorAll('.email-tag');
+        existingTags.forEach(tag => tag.remove());
+
+        // 새 태그 추가
+        this.emailList.forEach(email => {
+            this.addEmailTag(email);
+        });
     }
 
     // 일정 이메일 발송 (새로운 모달 사용)
@@ -2986,6 +4006,7 @@ ${schedule.location ? `- 장소: ${schedule.location}` : ''}
         
         // 이메일 입력 기능 초기화
         this.initializeEmailInput();
+        this.initializeEmailDropdown();
     }
 
     // 이메일 입력 기능 초기화
@@ -3140,12 +4161,25 @@ ${schedule.location ? `- 장소: ${schedule.location}` : ''}
             // 전송 중 표시
             sendingOverlay.style.display = 'flex';
             
-            // Google 인증 정보 가져오기
-            const googleCredentials = this.getGoogleCredentials();
+            // 토큰 상태 디버깅
+            console.log('🔍 [DEBUG] 이메일 전송 전 토큰 상태 확인');
+            await this.debugTokenStatus();
+            
+            // 먼저 강제 토큰 갱신 시도 (401 오류 방지)
+            console.log('🔄 [DEBUG] 사전 토큰 갱신 시도...');
+            const refreshResult = await this.forceRefreshGoogleTokens();
+            if (refreshResult.success) {
+                console.log('✅ [DEBUG] 사전 토큰 갱신 성공');
+            } else {
+                console.log('⚠️ [DEBUG] 사전 토큰 갱신 실패, 기존 토큰으로 진행');
+            }
+            
+            // Google 인증 정보 가져오기 (DB에서 자동 갱신 포함)
+            const googleCredentials = await this.getValidGoogleCredentials();
             console.log('🔍 Google 인증 정보 확인:', {
                 hasCredentials: !!googleCredentials,
                 hasAccessToken: !!(googleCredentials?.access_token),
-                hasRefreshToken: !!(googleCredentials?.refresh_token)
+                source: googleCredentials ? 'DB 또는 localStorage' : 'none'
             });
             
             if (!googleCredentials) {
@@ -3203,7 +4237,13 @@ ${schedule.location ? `- 장소: ${schedule.location}` : ''}
 
         } catch (error) {
             console.error('이메일 발송 오류:', error);
-            this.showToast(`이메일 발송 실패: ${error.message}`, 'error');
+            
+            // 401 오류인 경우 Google 재인증 유도
+            if (error.message.includes('401') || error.message.includes('인증')) {
+                this.handleGoogleAuthError();
+            } else {
+                this.showToast(`이메일 발송 실패: ${error.message}`, 'error');
+            }
         } finally {
             sendingOverlay.style.display = 'none';
         }

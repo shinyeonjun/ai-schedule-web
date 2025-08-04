@@ -24,6 +24,7 @@ from core.auth import create_jwt_token
 from core.dependencies import get_current_user_optional
 from services.database_service import DatabaseService
 from services.auth_service import AuthService
+from services.google_token_service import google_token_service
 
 # FastAPI 앱 생성
 app = FastAPI(
@@ -155,10 +156,21 @@ async def google_callback(code: str):
             "client_id": settings.google_client_id,
             "client_secret": settings.google_client_secret,
             "scopes": ["openid", "email", "profile", "https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/gmail.send"],
-            "expiry": None  # 만료 시간은 추후 계산
+            "expires_in": token_info.get("expires_in", 3600)
         }
         
-        # 6. 대시보드로 리다이렉트 (토큰과 사용자 정보 포함)
+        # 6. Google 토큰을 DB에 저장 (비동기로 처리)
+        try:
+            stored_tokens = google_token_service.save_tokens(
+                user_id=user_record["id"],
+                token_data=google_credentials
+            )
+            logger.info(f"Google 토큰 DB 저장 성공 - User ID: {user_record['id']}")
+        except Exception as token_error:
+            logger.error(f"Google 토큰 DB 저장 실패: {token_error}")
+            # 토큰 저장 실패해도 로그인은 계속 진행
+        
+        # 7. 대시보드로 리다이렉트 (토큰과 사용자 정보 포함)
         encoded_email = urllib.parse.quote(email)
         encoded_name = urllib.parse.quote(name)
         encoded_picture = urllib.parse.quote(picture) if picture else ""
@@ -244,8 +256,9 @@ async def dashboard_page():
 # ==================== API 라우트 ====================
 
 # 라우터 추가
-from routers import analysis, schedules, members, email, google_calendar, gmail
+from routers import auth, analysis, schedules, members, email, google_calendar, gmail
 
+app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(analysis.router, prefix="/api", tags=["analysis"])
 app.include_router(schedules.router, prefix="/api", tags=["schedules"])
 app.include_router(members.router, prefix="/api", tags=["members"])

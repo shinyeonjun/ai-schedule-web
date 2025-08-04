@@ -10,6 +10,8 @@ import logging
 
 from services.google_calendar_service import GoogleCalendarService
 from services.ics_service import ICSService
+from services.google_token_service import google_token_service
+from core.dependencies import get_current_user_optional
 from supabase import create_client
 from config.config import settings
 
@@ -19,6 +21,56 @@ logger = logging.getLogger(__name__)
 # 서비스 인스턴스
 google_calendar_service = GoogleCalendarService()
 ics_service = ICSService()
+
+async def get_valid_google_credentials_for_calendar(
+    user_id: str,
+    fallback_credentials: Optional[Dict] = None
+) -> Dict:
+    """
+    유효한 Google 인증 정보를 가져옵니다. DB에서 자동 갱신을 시도하고, 실패 시 fallback 사용
+    """
+    try:
+        if not user_id:
+            if fallback_credentials:
+                logger.warning("사용자 ID 없음, fallback credentials 사용")
+                return fallback_credentials
+            raise HTTPException(status_code=400, detail="사용자 ID가 필요합니다.")
+        
+        # DB에서 유효한 토큰 가져오기 (자동 갱신 포함)
+        valid_tokens = await google_token_service.get_valid_tokens(user_id)
+        
+        if valid_tokens:
+            logger.info(f"DB에서 유효한 Google 토큰 사용 - User: {user_id}")
+            return {
+                "access_token": valid_tokens["access_token"],
+                "refresh_token": valid_tokens.get("refresh_token"),
+                "token_uri": valid_tokens.get("token_uri", "https://oauth2.googleapis.com/token"),
+                "client_id": valid_tokens.get("client_id"),
+                "client_secret": valid_tokens.get("client_secret"),
+                "scopes": valid_tokens.get("scopes", [])
+            }
+        
+        # DB에 토큰이 없으면 fallback 사용
+        if fallback_credentials:
+            logger.warning(f"DB에 토큰 없음, fallback credentials 사용 - User: {user_id}")
+            return fallback_credentials
+        
+        raise HTTPException(
+            status_code=401, 
+            detail="Google 인증이 필요합니다. 다시 로그인해주세요."
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Google 인증 정보 처리 실패: {e}")
+        if fallback_credentials:
+            logger.warning("예외 발생으로 fallback credentials 사용")
+            return fallback_credentials
+        raise HTTPException(
+            status_code=500, 
+            detail="Google 인증 처리 중 오류가 발생했습니다."
+        )
 
 @router.get("/auth/google")
 async def google_auth(user_id: str = Query(..., description="사용자 ID")):
@@ -116,14 +168,25 @@ async def add_schedule_to_calendar(request: Dict[str, Any]):
     try:
         schedule_id = request.get('schedule_id')
         user_id = request.get('user_id')
-        google_credentials = request.get('google_credentials')
+        original_google_credentials = request.get('google_credentials')
         calendar_id = request.get('calendar_id', 'primary')
         
-        if not all([schedule_id, user_id, google_credentials]):
+        if not all([schedule_id, user_id]):
             raise HTTPException(
                 status_code=400,
-                detail="schedule_id, user_id, google_credentials는 필수 항목입니다."
+                detail="schedule_id, user_id는 필수 항목입니다."
             )
+        
+        # 1. 유효한 Google 인증 정보 가져오기 (자동 갱신 포함)
+        try:
+            google_credentials = await get_valid_google_credentials_for_calendar(
+                user_id=user_id,
+                fallback_credentials=original_google_credentials
+            )
+            logger.info(f"✅ Google 인증 정보 준비 완료 - User: {user_id}")
+        except HTTPException as auth_error:
+            logger.error(f"❌ Google 인증 실패: {auth_error.detail}")
+            raise auth_error
         
         # 데이터베이스에서 일정 정보 조회
         supabase = create_client(settings.supabase_url, settings.supabase_service_key)

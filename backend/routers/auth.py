@@ -4,6 +4,7 @@ Authentication routes for MUFI application
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import Dict, Any, Optional
 from services.auth_service import AuthService
+from services.google_token_service import google_token_service
 from core.dependencies import get_current_user_optional
 import logging
 
@@ -96,6 +97,155 @@ async def verify_token(current_user: Optional[Dict[str, Any]] = Depends(get_curr
 
 
 @router.post("/logout")
-async def logout():
+async def logout(current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)):
     """Logout user (client-side token cleanup)"""
-    return {"message": "Logout successful"} 
+    if current_user:
+        # Google 토큰도 함께 삭제
+        google_token_service.delete_tokens(current_user["user_id"])
+    return {"message": "Logout successful"}
+
+
+@router.post("/google/store-tokens")
+async def store_google_tokens(
+    request: Dict[str, Any],
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Store Google OAuth tokens in database"""
+    try:
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required"
+            )
+        
+        # Google 토큰 정보 추출
+        google_credentials = request.get("google_credentials")
+        if not google_credentials:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Google credentials are required"
+            )
+        
+        # DB에 토큰 저장
+        stored_tokens = google_token_service.save_tokens(
+            user_id=current_user["user_id"],
+            token_data=google_credentials
+        )
+        
+        return {
+            "success": True,
+            "message": "Google tokens stored successfully",
+            "expires_at": stored_tokens.get("expires_at")
+        }
+        
+    except Exception as e:
+        logger.error(f"Google 토큰 저장 실패: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to store Google tokens: {str(e)}"
+        )
+
+
+@router.get("/google/tokens")
+async def get_google_tokens(
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """Get valid Google tokens for current user"""
+    try:
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required"
+            )
+        
+        user_id = current_user["user_id"]
+        logger.info(f"🔍 [DEBUG] Google 토큰 조회 요청 - User ID: {user_id}")
+        
+        # 먼저 DB에서 원본 토큰 확인
+        raw_tokens = google_token_service.get_tokens(user_id)
+        logger.info(f"🔍 [DEBUG] DB 원본 토큰 존재: {bool(raw_tokens)}")
+        if raw_tokens:
+            logger.info(f"🔍 [DEBUG] 원본 토큰 정보: expires_at={raw_tokens.get('expires_at')}, "
+                       f"refresh_token_exists={bool(raw_tokens.get('refresh_token'))}")
+        
+        # 유효한 토큰 가져오기 (자동 갱신 포함)
+        valid_tokens = await google_token_service.get_valid_tokens(user_id)
+        
+        if not valid_tokens:
+            logger.warning(f"❌ [DEBUG] 유효한 토큰을 가져올 수 없음 - User ID: {user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No valid Google tokens found. Please re-authenticate."
+            )
+        
+        logger.info(f"✅ [DEBUG] 유효한 토큰 반환 성공 - User ID: {user_id}")
+        
+        # 민감한 정보는 제외하고 반환
+        return {
+            "success": True,
+            "tokens": {
+                "access_token": valid_tokens["access_token"],
+                "expires_at": valid_tokens["expires_at"],
+                "scopes": valid_tokens["scopes"]
+            },
+            "debug_info": {
+                "raw_token_exists": bool(raw_tokens),
+                "refresh_token_exists": bool(raw_tokens and raw_tokens.get("refresh_token")),
+                "original_expires_at": raw_tokens.get("expires_at") if raw_tokens else None,
+                "final_expires_at": valid_tokens.get("expires_at")
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Google 토큰 조회 실패: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get Google tokens: {str(e)}"
+        )
+
+@router.post("/google/force-refresh")
+async def force_refresh_google_tokens(
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+):
+    """강제로 Google 토큰 갱신"""
+    try:
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required"
+            )
+        
+        user_id = current_user["user_id"]
+        logger.info(f"🔄 [DEBUG] 강제 토큰 갱신 요청 - User ID: {user_id}")
+        
+        # 강제 토큰 갱신
+        refreshed_tokens = await google_token_service.refresh_access_token(user_id)
+        
+        if not refreshed_tokens:
+            logger.error(f"❌ [DEBUG] 강제 토큰 갱신 실패 - User ID: {user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token refresh failed. Please re-authenticate with Google."
+            )
+        
+        logger.info(f"✅ [DEBUG] 강제 토큰 갱신 성공 - User ID: {user_id}")
+        
+        return {
+            "success": True,
+            "message": "Google tokens refreshed successfully",
+            "tokens": {
+                "access_token": refreshed_tokens["access_token"][:20] + "...",  # 보안을 위해 일부만 표시
+                "expires_at": refreshed_tokens["expires_at"]
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"강제 토큰 갱신 실패: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to refresh Google tokens: {str(e)}"
+        ) 

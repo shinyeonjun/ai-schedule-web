@@ -10,6 +10,7 @@ from pydantic import BaseModel, EmailStr
 from services.gmail_service import GmailService
 from services.ics_service import ICSService
 from services.database_service import DatabaseService
+from services.google_token_service import google_token_service
 from core.dependencies import get_current_user_optional
 from supabase import create_client
 from config.config import settings
@@ -42,6 +43,56 @@ class EmailResponse(BaseModel):
     message: str
     details: Optional[Dict] = None
 
+async def get_valid_google_credentials(
+    current_user: Optional[Dict],
+    fallback_credentials: Optional[Dict] = None
+) -> Dict:
+    """
+    유효한 Google 인증 정보를 가져옵니다. DB에서 자동 갱신을 시도하고, 실패 시 fallback 사용
+    """
+    try:
+        if not current_user:
+            if fallback_credentials:
+                logger.warning("사용자 인증 없음, fallback credentials 사용")
+                return fallback_credentials
+            raise HTTPException(status_code=401, detail="사용자 인증이 필요합니다.")
+        
+        # DB에서 유효한 토큰 가져오기 (자동 갱신 포함)
+        valid_tokens = await google_token_service.get_valid_tokens(current_user["user_id"])
+        
+        if valid_tokens:
+            logger.info(f"DB에서 유효한 Google 토큰 사용 - User: {current_user['user_id']}")
+            print(f"🔑 [DEBUG] DB에서 가져온 액세스 토큰: {valid_tokens['access_token'][:20]}...")
+            return {
+                "access_token": valid_tokens["access_token"],
+                "refresh_token": valid_tokens.get("refresh_token"),
+                "token_uri": valid_tokens.get("token_uri", "https://oauth2.googleapis.com/token"),
+                "client_id": valid_tokens.get("client_id"),
+                "client_secret": valid_tokens.get("client_secret"),
+                "scopes": valid_tokens.get("scopes", [])
+            }
+        
+        # fallback을 사용하지 않고 항상 DB에서만 가져오기
+        if fallback_credentials and fallback_credentials is not None:
+            logger.warning(f"DB에 토큰 없음, 하지만 fallback 무시하고 오류 반환 - User: {current_user['user_id']}")
+            # fallback을 사용하지 않음
+        
+        raise HTTPException(
+            status_code=401, 
+            detail="Google 인증이 필요합니다. 다시 로그인해주세요."
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Google 인증 정보 처리 실패: {e}")
+        # fallback을 사용하지 않고 항상 오류 반환
+        raise HTTPException(
+            status_code=500, 
+            detail="Google 인증 처리 중 오류가 발생했습니다."
+        )
+
+
 @router.post("/send-schedule", response_model=EmailResponse)
 async def send_schedule_email(
     request: SendScheduleEmailRequest,
@@ -53,6 +104,37 @@ async def send_schedule_email(
     try:
         print(f"📧 [DEBUG] Raw request received")
         print(f"📧 Request 타입: {type(request)}")
+        
+        # 1. 유효한 Google 인증 정보 가져오기 (자동 갱신 포함)
+        try:
+            # 먼저 강제 토큰 갱신 시도
+            if current_user:
+                print(f"🔄 [DEBUG] 사전 토큰 갱신 시도 - User: {current_user['user_id']}")
+                try:
+                    refreshed_tokens = await google_token_service.refresh_access_token(current_user["user_id"])
+                    if refreshed_tokens:
+                        print(f"✅ [DEBUG] 사전 토큰 갱신 성공")
+                        print(f"🔑 [DEBUG] 새 액세스 토큰: {refreshed_tokens.get('access_token', 'None')[:20]}...")
+                    else:
+                        print(f"⚠️ [DEBUG] 사전 토큰 갱신 실패, 기존 토큰으로 진행")
+                except Exception as e:
+                    print(f"⚠️ [DEBUG] 사전 토큰 갱신 오류: {e}")
+            
+            # 반드시 DB에서 최신 토큰 가져오기 (갱신된 토큰 포함)
+            print(f"🔄 [DEBUG] DB에서 최신 토큰 다시 조회")
+            google_credentials = await get_valid_google_credentials(
+                current_user=current_user,
+                fallback_credentials=None  # fallback 사용하지 않고 무조건 DB에서 가져오기
+            )
+            print(f"✅ Google 인증 정보 준비 완료")
+            print(f"🔑 Access Token 존재: {bool(google_credentials.get('access_token'))}")
+            print(f"🔑 Refresh Token 존재: {bool(google_credentials.get('refresh_token'))}")
+        except HTTPException as auth_error:
+            print(f"❌ Google 인증 실패: {auth_error.detail}")
+            raise HTTPException(
+                status_code=401,
+                detail="Google 인증이 만료되었습니다. 다시 로그인해주세요."
+            )
         
         # 개별 필드 안전하게 접근
         try:
@@ -144,14 +226,16 @@ async def send_schedule_email(
         email_subject = request.subject or schedule.get('title', '일정')
         email_content = request.message or schedule.get('description', '')
 
-        # Gmail 서비스를 통해 이메일 전송
+        # Gmail 서비스를 통해 이메일 전송 (Google 표준 라이브러리 사용)
+        print(f"🚀 [DEBUG] Google 표준 라이브러리 방식으로 이메일 전송 시작")
         email_result = await gmail_service.send_schedule_invitation(
-            google_credentials=request.google_credentials,
+            google_credentials=google_credentials,
             to_emails=request.to_emails,
             schedule_title=email_subject,
             schedule_description=email_content,
             ics_content=ics_content,
-            sender_name="MUFI"
+            sender_name="MUFI",
+            user_id=current_user["user_id"]  # user_id 전달로 표준 방식 사용
         )
         
         if email_result["success"]:
@@ -196,6 +280,17 @@ async def send_group_email(
         print(f"📧 그룹 이메일 전송 요청: file_id={request.file_id}")
         print(f"📧 수신자: {request.to_emails}")
         
+        # 1. 유효한 Google 인증 정보 가져오기 (자동 갱신 포함)
+        try:
+            google_credentials = await get_valid_google_credentials(
+                current_user=current_user,
+                fallback_credentials=request.google_credentials
+            )
+            print(f"✅ Google 인증 정보 준비 완료")
+        except HTTPException as auth_error:
+            print(f"❌ Google 인증 실패: {auth_error.detail}")
+            raise auth_error
+        
         # Supabase 클라이언트 생성
         supabase = create_client(settings.supabase_url, settings.supabase_service_key)
         
@@ -230,9 +325,9 @@ async def send_group_email(
         {request.message if request.message else ''}
         """.strip()
         
-        # Gmail 서비스를 통해 이메일 전송
+        # Gmail 서비스를 통해 이메일 전송 (업데이트된 인증 정보 사용)
         email_result = await gmail_service.send_schedule_invitation(
-            google_credentials=request.google_credentials,
+            google_credentials=google_credentials,
             to_emails=request.to_emails,
             schedule_title=f"{group_name} - 전체 일정 ({len(schedules)}개)",
             schedule_description=group_description,

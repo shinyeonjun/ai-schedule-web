@@ -1,6 +1,7 @@
 """
 Gmail Service
 Gmail API를 사용하여 이메일 전송 기능을 제공합니다.
+Google 표준 라이브러리 사용
 """
 import base64
 import json
@@ -12,6 +13,12 @@ from typing import Dict, List, Optional
 import httpx
 from config.config import settings
 
+# Google 표준 라이브러리 import
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
 logger = logging.getLogger(__name__)
 
 class GmailService:
@@ -22,6 +29,135 @@ class GmailService:
         # ICS 파일 캐시 (파일 경로: 콘텐츠)
         self._ics_cache = {}
         self._max_cache_size = 100  # 최대 100개 파일 캐시
+    
+    async def send_email_with_google_auth(
+        self,
+        user_id: str,
+        to_email: str,
+        subject: str,
+        body: str,
+        ics_content: str = None,
+        ics_filename: str = "schedule.ics"
+    ) -> Dict:
+        """
+        Google 표준 라이브러리를 사용하여 이메일 전송
+        
+        Args:
+            user_id: 사용자 ID
+            to_email: 수신자 이메일
+            subject: 이메일 제목
+            body: 이메일 본문
+            ics_content: ICS 파일 내용 (선택사항)
+            ics_filename: ICS 파일명
+            
+        Returns:
+            전송 결과
+        """
+        try:
+            # 1. Google 표준 라이브러리로 토큰 로드 및 갱신
+            from services.google_token_service import google_token_service
+            
+            token_data = await google_token_service.load_and_refresh_credentials(user_id)
+            if not token_data:
+                return {
+                    "success": False,
+                    "error": "Google 인증 정보를 가져올 수 없습니다.",
+                    "error_code": "AUTH_FAILED"
+                }
+            
+            logger.info(f"🔑 [DEBUG] Google 표준 라이브러리 토큰: {token_data['access_token'][:20]}...")
+            
+            # 2. Google Credentials 객체 생성
+            creds = Credentials(
+                token=token_data["access_token"],
+                refresh_token=token_data.get("refresh_token"),
+                token_uri=token_data.get("token_uri"),
+                client_id=token_data.get("client_id"),
+                client_secret=token_data.get("client_secret"),
+                scopes=token_data.get("scopes", [])
+            )
+            
+            # 3. Gmail API 서비스 빌드
+            service = build('gmail', 'v1', credentials=creds)
+            
+            # 4. MIME 메시지 생성
+            message = MIMEMultipart()
+            message['to'] = to_email
+            message['subject'] = subject
+            
+            # 본문 추가
+            body_part = MIMEText(body, 'html', 'utf-8')
+            message.attach(body_part)
+            
+            # ICS 파일 첨부 (있는 경우)
+            if ics_content:
+                from email.mime.base import MIMEBase
+                from email import encoders
+                
+                ics_attachment = MIMEBase('text', 'calendar')
+                ics_attachment.set_payload(ics_content.encode('utf-8'))
+                encoders.encode_base64(ics_attachment)
+                
+                ics_attachment.add_header(
+                    'Content-Disposition',
+                    f'attachment; filename="{ics_filename}"'
+                )
+                ics_attachment.add_header(
+                    'Content-Type',
+                    f'text/calendar; charset=utf-8; name="{ics_filename}"'
+                )
+                
+                message.attach(ics_attachment)
+                
+                logger.info(f"📎 ICS 첨부 파일 추가: {ics_filename}")
+            
+            # 5. 메시지를 base64로 인코딩
+            raw_message = base64.urlsafe_b64encode(
+                message.as_bytes()
+            ).decode('utf-8')
+            
+            # 6. Gmail API로 이메일 전송
+            logger.info(f"📧 Google 표준 라이브러리로 이메일 전송 시도: {to_email}")
+            
+            result = service.users().messages().send(
+                userId='me',
+                body={'raw': raw_message}
+            ).execute()
+            
+            logger.info(f"✅ 이메일 전송 성공: {result.get('id', 'No ID')}")
+            
+            return {
+                "success": True,
+                "message_id": result.get('id'),
+                "message": f"이메일이 {to_email}로 성공적으로 전송되었습니다."
+            }
+            
+        except HttpError as e:
+            logger.error(f"❌ Gmail API HTTP 오류: {e}")
+            error_details = json.loads(e.content.decode()) if e.content else {}
+            
+            if e.resp.status == 401:
+                logger.error(f"🔄 401 오류 - 토큰 갱신 필요")
+                return {
+                    "success": False,
+                    "error": "Google 인증이 만료되었습니다. 다시 로그인해주세요.",
+                    "error_code": "AUTH_EXPIRED",
+                    "requires_reauth": True
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Gmail API 오류: {error_details.get('error', {}).get('message', str(e))}",
+                    "error_code": "API_ERROR"
+                }
+                
+        except Exception as e:
+            logger.error(f"❌ 이메일 전송 일반 오류: {e}")
+            return {
+                "success": False,
+                "error": f"이메일 전송 중 오류가 발생했습니다: {str(e)}",
+                "error_code": "UNKNOWN_ERROR"
+            }
     
     def _manage_cache(self, file_path: str, content: str):
         """캐시 크기 관리 및 새 항목 추가"""
@@ -131,11 +267,26 @@ class GmailService:
             
         except httpx.HTTPError as e:
             logger.error(f"❌ Gmail API 오류: {e}")
+            print(f"❌ Gmail API HTTP 오류: {e}")
+            
+            if e.response:
+                print(f"❌ 응답 상태 코드: {e.response.status_code}")
+                print(f"❌ 응답 헤더: {dict(e.response.headers)}")
+                try:
+                    error_body = e.response.text
+                    print(f"❌ 응답 본문: {error_body}")
+                except:
+                    print("❌ 응답 본문을 읽을 수 없음")
+            
             if e.response and e.response.status_code == 401:
+                print(f"🔄 401 오류 감지 - 토큰 강제 갱신 시도")
+                
+                # 토큰 강제 갱신 시도 (현재는 사용자에게 재인증 요청)
                 return {
                     "success": False,
                     "error": "Google 인증이 만료되었습니다. 다시 로그인해주세요.",
-                    "error_code": "AUTH_EXPIRED"
+                    "error_code": "AUTH_EXPIRED",
+                    "requires_reauth": True
                 }
             else:
                 return {
@@ -163,7 +314,8 @@ class GmailService:
         schedule_title: str,
         schedule_description: str,
         ics_content: str,
-        sender_name: str = "MUFI"
+        sender_name: str = "MUFI",
+        user_id: str = None
     ) -> Dict:
         """
         일정 초대 이메일 전송
@@ -225,16 +377,31 @@ class GmailService:
             safe_filename = re.sub(r'[<>:"/\\|?*]', '_', schedule_title)
             safe_filename = safe_filename.strip()[:50]  # 최대 50자로 제한
             
-            # 각 수신자에게 개별 전송
+            # 각 수신자에게 개별 전송 (Google 표준 라이브러리 사용)
             for to_email in to_emails:
-                result = await self.send_email_with_ics(
-                    google_credentials=google_credentials,
-                    to_email=to_email,
-                    subject=f"📅 일정 초대: {schedule_title}",
-                    body=email_body,
-                    ics_content=ics_content,
-                    ics_filename=f"{safe_filename}.ics"
-                )
+                if user_id:
+                    # 새로운 표준 방식 사용
+                    logger.info(f"🚀 Google 표준 라이브러리로 이메일 전송: {to_email}")
+                    result = await self.send_email_with_google_auth(
+                        user_id=user_id,
+                        to_email=to_email,
+                        subject=f"📅 일정 초대: {schedule_title}",
+                        body=email_body,
+                        ics_content=ics_content,
+                        ics_filename=f"{safe_filename}.ics"
+                    )
+                else:
+                    # 기존 방식 fallback
+                    logger.warning(f"⚠️ user_id가 없어 기존 방식 사용: {to_email}")
+                    result = await self.send_email_with_ics(
+                        google_credentials=google_credentials,
+                        to_email=to_email,
+                        subject=f"📅 일정 초대: {schedule_title}",
+                        body=email_body,
+                        ics_content=ics_content,
+                        ics_filename=f"{safe_filename}.ics"
+                    )
+                
                 results.append({
                     "email": to_email,
                     "result": result
