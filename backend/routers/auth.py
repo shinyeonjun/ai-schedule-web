@@ -19,10 +19,8 @@ async def google_login(request: Request):
     """Get Google OAuth login URL"""
     from config.config import settings
     
-    # 현재 요청의 호스트를 기반으로 동적으로 리다이렉트 URI 생성
-    host = request.headers.get("host")
-    scheme = "https" if request.headers.get("x-forwarded-proto") == "https" else "http"
-    redirect_uri = f"{scheme}://{host}/auth/google/callback"
+    # 고정 도메인 사용
+    redirect_uri = settings.google_redirect_uri
     
     google_auth_url = (
         "https://accounts.google.com/o/oauth2/auth"
