@@ -5657,19 +5657,23 @@ ${schedule.location ? `- 장소: ${schedule.location}` : ''}
         this.selectedShareUsers = [];
         
         const modal = document.getElementById('shareModal');
-        modal.style.display = 'flex';
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
         
         // 사용자 목록 로드
         this.loadShareUsers();
         
         // 검색 이벤트 바인딩
         const searchInput = document.getElementById('userSearchInput');
-        searchInput.addEventListener('input', (e) => this.filterShareUsers(e.target.value));
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => this.filterShareUsers(e.target.value));
+        }
     }
     
     closeShareModal() {
         const modal = document.getElementById('shareModal');
-        modal.style.display = 'none';
+        modal.classList.remove('show');
+        document.body.style.overflow = '';
         
         // 상태 초기화
         this.currentShareScheduleId = null;
