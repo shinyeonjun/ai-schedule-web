@@ -36,30 +36,64 @@
                 </ul>
             </nav>
 
-            <!-- 사용자 프로필 -->
-            <div class="user-profile" id="userProfile">
-                <div class="user-avatar">
-                    <img id="userAvatar" src="" alt="사용자 프로필" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                    <div class="avatar-placeholder" style="display: none;">
-                        <span id="userInitials"></span>
-                    </div>
-                </div>
-                <div class="user-info">
-                    <div class="user-name" id="userName">로딩 중...</div>
-                    <div class="user-email" id="userEmail">로딩 중...</div>
-                </div>
-                <div class="user-actions">
-                    <button class="btn-icon" onclick="dashboard.logout()" title="로그아웃">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
+
         </aside>
 
         <!-- 메인 콘텐츠 -->
         <main class="main-content">
+            <!-- 메인 헤더 -->
+            <header class="main-header">
+                <div class="header-left">
+                </div>
+                
+                <div class="header-right">
+                    <!-- 알림 시스템 -->
+                    <div class="notification-container">
+                        <button class="btn-icon notification-btn" id="notificationBtn" title="메시지">
+                            <i class="fas fa-bell"></i>
+                            <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                        </button>
+                        
+                        <!-- 알림 드롭다운 -->
+                        <div class="notification-dropdown" id="notificationDropdown">
+                            <div class="notification-header">
+                                <h3>메시지</h3>
+                                <button class="btn-text" id="markAllReadBtn">모두 읽음</button>
+                            </div>
+                            
+                            <div class="notification-list" id="notificationList">
+                                <!-- Notification items will be dynamically added here -->
+                            </div>
+                            
+                            <div class="notification-footer">
+                                <button class="btn-text" id="viewAllNotificationsBtn">모든 메시지 보기</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 사용자 프로필 -->
+                    <div class="user-profile" id="userProfile">
+                        <div class="user-avatar">
+                            <img id="userAvatar" src="" alt="사용자 프로필" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="avatar-placeholder" style="display: none;">
+                                <span id="userInitials"></span>
+                            </div>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name" id="userName">로딩 중...</div>
+                            <div class="user-email" id="userEmail">로딩 중...</div>
+                        </div>
+                        <div class="user-actions">
+                            <button class="btn-icon" onclick="dashboard.logout()" title="로그아웃">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
             <!-- 통화 분석 섹션 -->
             <section id="analysis-section" class="content-section active">
                 <div class="section-header">
@@ -149,11 +183,45 @@
                     <p class="section-description">분석된 일정들을 확인하고 캘린더 파일로 다운로드할 수 있습니다.</p>
                 </div>
 
-                <div class="card">
-                    <h2 class="card-title">저장된 일정</h2>
-                    <div class="text-center">
-                        <h3>저장된 일정이 없습니다</h3>
-                        <p>통화 분석을 통해 일정을 생성해보세요.</p>
+                <!-- 일정 탭 메뉴 -->
+                <div class="schedule-tabs">
+                    <button class="tab-button active" data-tab="my-schedules">
+                        <i class="fas fa-calendar-check"></i> 나의 일정
+                    </button>
+                    <button class="tab-button" data-tab="shared-schedules">
+                        <i class="fas fa-calendar-alt"></i> 공유 일정
+                    </button>
+                </div>
+
+                <!-- 나의 일정 탭 -->
+                <div class="tab-content active" id="my-schedules">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">나의 일정</h2>
+                        </div>
+                        
+                        <div class="schedules-container" id="mySchedulesContainer">
+                            <!-- 기존 일정 로드 결과가 여기에 표시됩니다 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 공유 일정 탭 -->
+                <div class="tab-content" id="shared-schedules">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">공유 일정</h2>
+                        </div>
+                        
+                        <div class="schedules-container" id="sharedSchedulesContainer">
+                            <div class="placeholder-content">
+                                <div class="placeholder-icon">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </div>
+                                <h3>공유 일정이 없습니다</h3>
+                                <p>다른 사용자와 일정을 공유하거나 초대받은 일정을 확인해보세요.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -258,6 +326,41 @@
             </div>
             <div class="modal-body" id="modalBody">
                 내용
+            </div>
+        </div>
+    </div>
+
+    <!-- 공유 모달 -->
+    <div id="shareModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">일정 공유</h3>
+                <button class="modal-close" onclick="dashboard.closeShareModal()">
+                    ×
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>이 일정을 공유할 사용자를 선택하세요:</p>
+                
+                <div class="user-search-container">
+                    <input type="text" id="userSearchInput" placeholder="사용자 검색..." class="form-control">
+                </div>
+                
+                <div class="users-list" id="shareUsersList">
+                    <!-- 사용자 목록이 동적으로 추가됩니다 -->
+                </div>
+                
+                <div class="selected-users" id="selectedUsers" style="display: none;">
+                    <h4>선택된 사용자:</h4>
+                    <div class="selected-users-tags" id="selectedUsersTags"></div>
+                </div>
+                
+                <div class="share-actions">
+                    <button class="btn btn-secondary" onclick="dashboard.closeShareModal()">취소</button>
+                    <button class="btn btn-primary" onclick="dashboard.sendShareInvitations()" id="shareSubmitBtn" disabled>
+                        <i class="fas fa-share-alt"></i> 공유하기
+                    </button>
+                </div>
             </div>
         </div>
     </div>

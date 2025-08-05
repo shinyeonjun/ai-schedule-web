@@ -19,8 +19,8 @@ from models.analysis import (
 
 class DatabaseService:
     def __init__(self):
-        self.supabase_url = os.getenv("SUPABASE_URL", "https://nzfdjdytuqptiqveivtt.supabase.co")
-        self.supabase_key = os.getenv("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56ZmRqZHl0dXFwdGlxdmVpdnR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3ODA4NjAsImV4cCI6MjA2NjM1Njg2MH0.fzKY30Nif_agTPpSULceeU2h_DAbqSd4NRaJRVRAjKs")
+        self.supabase_url = os.getenv("SUPABASE_URL", "https://ktcksionzsybzzpziird.supabase.co")
+        self.supabase_key = os.getenv("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0Y2tzaW9uenN5Ynp6cHppaXJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyNjAzNTgsImV4cCI6MjA2NjgzNjM1OH0.WcoHArimjWJe6nIcpRFAbECsbCvGnVUEKTvXKg0XgHM")
         
         if not self.supabase_url or not self.supabase_key:
             raise ValueError("Supabase 환경 변수가 설정되지 않았습니다.")
@@ -392,4 +392,67 @@ class DatabaseService:
                 
         except Exception as e:
             print(f"사용자 삭제 오류: {str(e)}")
-            return False 
+            return False
+    
+    # ===== 일정 공유 관련 메서드 =====
+    
+    def get_schedule_by_id(self, schedule_id: str) -> Optional[Dict[str, Any]]:
+        """스케줄 ID로 일정 조회"""
+        try:
+            result = self.client.table("schedules").select("*").eq("id", schedule_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"스케줄 조회 오류: {str(e)}")
+            return None
+    
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """이메일로 사용자 조회"""
+        try:
+            result = self.client.table("users").select("*").eq("email", email).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"사용자 이메일 조회 오류: {str(e)}")
+            return None
+    
+    def update_schedule_share(self, schedule_id: str, share_data: List[Dict[str, Any]]) -> bool:
+        """스케줄의 공유 정보 업데이트"""
+        try:
+            result = self.client.table("schedules").update({
+                "share": share_data,
+                "updated_at": datetime.now().isoformat()
+            }).eq("id", schedule_id).execute()
+            
+            return len(result.data) > 0
+        except Exception as e:
+            print(f"스케줄 공유 업데이트 오류: {str(e)}")
+            return False
+    
+    def get_shared_schedules_for_user(self, user_id: str) -> List[Dict[str, Any]]:
+        """사용자가 공유받은 일정들 조회"""
+        try:
+            # PostgreSQL JSONB에서 배열 내 객체의 필드를 검색
+            # share 컬럼이 JSONB 배열이고, 각 배열 요소가 user_id를 가지고 있는 경우
+            result = self.client.table("schedules").select("*").contains("share", [{"user_id": user_id}]).execute()
+            
+            # 더 정확한 필터링을 위해 Python에서 추가 처리
+            filtered_schedules = []
+            for schedule in result.data:
+                share_data = schedule.get('share') or []
+                for shared_user in share_data:
+                    if shared_user.get('user_id') == user_id:
+                        filtered_schedules.append(schedule)
+                        break
+            
+            return filtered_schedules
+        except Exception as e:
+            print(f"공유받은 일정 조회 오류: {str(e)}")
+            return []
+    
+    def get_schedules_shared_by_user(self, user_id: str) -> List[Dict[str, Any]]:
+        """사용자가 공유한 일정들 조회"""
+        try:
+            result = self.client.table("schedules").select("*").eq("user_id", user_id).neq("share", "[]").execute()
+            return result.data
+        except Exception as e:
+            print(f"공유한 일정 조회 오류: {str(e)}")
+            return [] 

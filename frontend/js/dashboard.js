@@ -23,13 +23,8 @@ class MUFIDashboard {
     async initializeDashboard() {
         console.log('📋 DOM 요소들 바인딩 시작...');
         
-        // 먼저 로그인 상태 확인 (비동기 대기)
-        const authResult = await this.checkAuthenticationState();
-        if (!authResult) {
-            return; // 인증 실패시 함수 종료
-        }
-        
         try {
+            // 먼저 기본 설정들을 초기화
             // DOM 요소들
             this.elements = {
                 // 네비게이션
@@ -74,7 +69,15 @@ class MUFIDashboard {
                 modal: document.getElementById('modal'),
                 modalTitle: document.getElementById('modalTitle'),
                 modalBody: document.getElementById('modalBody'),
-                modalClose: document.getElementById('modalClose')
+                modalClose: document.getElementById('modalClose'),
+                
+                // 알림 시스템
+                notificationBtn: document.getElementById('notificationBtn'),
+                notificationDropdown: document.getElementById('notificationDropdown'),
+                notificationBadge: document.getElementById('notificationBadge'),
+                notificationList: document.getElementById('notificationList'),
+                markAllReadBtn: document.getElementById('markAllReadBtn'),
+                viewAllNotificationsBtn: document.getElementById('viewAllNotificationsBtn')
             };
             
             console.log('✅ DOM 요소 바인딩 완료');
@@ -97,7 +100,10 @@ class MUFIDashboard {
                 isAnalyzing: false,
                 currentSection: 'analysis',
                 currentTab: 'file-upload',
-                members: []
+                members: [],
+                notifications: [],
+                unreadNotificationCount: 0,
+                currentUser: null
             };
 
             // 설정
@@ -106,6 +112,13 @@ class MUFIDashboard {
                 allowedTypes: ['.txt'],
                 apiBaseUrl: window.location.origin // FastAPI 서버 URL
             };
+
+            // 이제 기본 설정이 완료되었으므로 인증 상태 확인
+            console.log('🔐 인증 상태 확인 시작...');
+            const authResult = await this.checkAuthenticationState();
+            if (!authResult) {
+                return; // 인증 실패시 함수 종료
+            }
 
             console.log('🔧 이벤트 바인딩 시작...');
             this.bindEvents();
@@ -121,6 +134,9 @@ class MUFIDashboard {
             // 인원 관리 섹션 로드
             this.loadUsersWhenNeeded();
             this.initMembersTabs();
+            
+            // 알림 시스템 초기화
+            await this.initializeNotifications();
             
             this.hideLoading();
             console.log('🎉 대시보드 초기화 완료!');
@@ -153,6 +169,24 @@ class MUFIDashboard {
         // 탭 이벤트
         this.elements.tabButtons.forEach(button => {
             button.addEventListener('click', (e) => this.handleTabSwitch(e));
+        });
+
+        // 알림 시스템 이벤트
+        if (this.elements.notificationBtn) {
+            this.elements.notificationBtn.addEventListener('click', () => this.toggleNotificationDropdown());
+        }
+        if (this.elements.markAllReadBtn) {
+            this.elements.markAllReadBtn.addEventListener('click', () => this.markAllNotificationsRead());
+        }
+        if (this.elements.viewAllNotificationsBtn) {
+            this.elements.viewAllNotificationsBtn.addEventListener('click', () => this.viewAllNotifications());
+        }
+
+        // 알림 드롭다운 외부 클릭 시 닫기
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.notification-container')) {
+                this.closeNotificationDropdown();
+            }
         });
 
         // 파일 업로드 이벤트
@@ -264,10 +298,10 @@ class MUFIDashboard {
             console.log('✅ 섹션 전환 완료:', targetSection);
         }
 
-        // 일정 관리 섹션인 경우 일정 목록 로드
+        // 일정 관리 섹션인 경우 나의 일정 탭으로 데이터 로드
         if (targetSection === 'schedules') {
-            console.log('🔍 [DEBUG] 일정 관리 탭 클릭됨 - loadSchedules 호출');
-            this.loadSchedules();
+            console.log('🔍 [DEBUG] 일정 관리 탭 클릭됨 - 나의 일정 로드');
+            this.loadMySchedulesTab();
         }
     }
 
@@ -286,6 +320,13 @@ class MUFIDashboard {
         if (targetContent) {
             targetContent.classList.add('active');
             this.state.currentTab = targetTab;
+            
+            // 일정 탭 전환 시 데이터 로드
+            if (targetTab === 'my-schedules') {
+                this.loadMySchedulesTab();
+            } else if (targetTab === 'shared-schedules') {
+                this.loadSharedSchedulesTab();
+            }
         }
         
         // 탭 전환 시 버튼 상태 업데이트
@@ -830,13 +871,17 @@ class MUFIDashboard {
                 this.setGoogleCredentials(credentials);
                 console.log('✅ Google Calendar 토큰 localStorage 저장 완료');
                 
-                // DB에도 저장 (잠시 후 실행 - config 초기화 대기)
+                // DB에도 저장 (config 초기화 확인 후)
                 setTimeout(() => {
-                    this.storeGoogleTokensInDatabase(credentials).then(() => {
-                        console.log('✅ Google 토큰 DB 저장 완료');
-                    }).catch(error => {
-                        console.error('❌ Google 토큰 DB 저장 실패:', error);
-                    });
+                    if (this.config && this.config.apiBaseUrl) {
+                        this.storeGoogleTokensInDatabase(credentials).then(() => {
+                            console.log('✅ Google 토큰 DB 저장 완료');
+                        }).catch(error => {
+                            console.error('❌ Google 토큰 DB 저장 실패:', error);
+                        });
+                    } else {
+                        console.log('⚠️ config가 아직 초기화되지 않음 - Google 토큰 DB 저장 건너뜀');
+                    }
                 }, 1000);
             } catch (error) {
                 console.error('❌ Google Calendar 토큰 파싱 실패:', error);
@@ -849,6 +894,16 @@ class MUFIDashboard {
 
         // 사용자 정보 설정
         this.userInfo = userInfo;
+        
+        // state가 초기화되어 있는 경우에만 currentUser 설정
+        if (this.state) {
+            this.state.currentUser = {
+                id: userId,
+                name: name,
+                email: email,
+                picture: picture
+            };
+        }
         
         console.log('✅ 새로운 로그인 처리 완료');
         
@@ -880,6 +935,12 @@ class MUFIDashboard {
             // 임시로 백엔드 검증 없이 localStorage 기반으로만 세션 유지
             console.log('✅ 저장된 세션이 유효함 - 로그인 상태 복원 (임시: 백엔드 검증 생략)');
             this.userInfo = userInfo;
+            this.state.currentUser = {
+                id: userInfo.user_id,
+                name: userInfo.name,
+                email: userInfo.email,
+                picture: userInfo.picture
+            };
             
             // 로그인 시간 갱신
             if (hoursDiff > 1) { // 1시간 이상 지났으면 갱신
@@ -953,8 +1014,19 @@ class MUFIDashboard {
                 return;
             }
 
-            const { name, email, picture } = this.userInfo;
-            console.log('📋 사용자 정보 표시:', { name, email, picture: !!picture });
+            const { name, email, picture, user_id } = this.userInfo;
+            console.log('📋 사용자 정보 표시:', { name, email, picture: !!picture, user_id });
+
+            // state.currentUser 설정 (혹시 설정되지 않았을 경우를 대비)
+            if (!this.state.currentUser) {
+                this.state.currentUser = {
+                    id: user_id,
+                    name: name,
+                    email: email,
+                    picture: picture
+                };
+                console.log('✅ state.currentUser 설정 완료:', this.state.currentUser);
+            }
 
             // 사용자 이름 표시
             this.elements.userName.textContent = name || '사용자';
@@ -2524,18 +2596,21 @@ class MUFIDashboardExtension extends MUFIDashboard {
     }
 
     displaySchedules(schedules) {
-        const scheduleSection = document.getElementById('schedules-section');
-        if (!scheduleSection) {
-            console.error('❌ schedules-section 엘리먼트를 찾을 수 없습니다!');
+        // 탭 구조를 유지하면서 나의 일정 컨테이너에만 데이터 표시
+        const container = document.getElementById('mySchedulesContainer');
+        if (!container) {
+            console.error('❌ mySchedulesContainer 엘리먼트를 찾을 수 없습니다!');
             return;
         }
-        console.log('✅ schedules-section 엘리먼트 찾음:', scheduleSection);
+        console.log('✅ mySchedulesContainer 엘리먼트 찾음:', container);
 
         if (!schedules || schedules.length === 0) {
-            scheduleSection.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon">📅</div>
-                    <h3>저장된 일정이 없습니다</h3>
+            container.innerHTML = `
+                <div class="placeholder-content">
+                    <div class="placeholder-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <h3>나의 일정이 없습니다</h3>
                     <p>통화 분석을 통해 일정을 생성해보세요.</p>
                 </div>
             `;
@@ -2544,16 +2619,7 @@ class MUFIDashboardExtension extends MUFIDashboard {
 
         const schedulesHtml = schedules.map(schedule => this.createScheduleCard(schedule)).join('');
         
-        scheduleSection.innerHTML = `
-            <div class="schedules-header">
-                <h2><i class="fas fa-calendar-alt"></i> 일정 관리</h2>
-                <div class="schedules-stats">
-                    <span class="stat-item">
-                        <i class="fas fa-list"></i>
-                        총 ${schedules.length}개 일정
-                    </span>
-                </div>
-            </div>
+        container.innerHTML = `
             <div class="schedules-grid">
                 ${schedulesHtml}
             </div>
@@ -2561,18 +2627,21 @@ class MUFIDashboardExtension extends MUFIDashboard {
     }
 
     displayGroupedSchedules(groupedSchedules) {
-        const scheduleSection = document.getElementById('schedules-section');
-        if (!scheduleSection) {
-            console.error('❌ schedules-section 엘리먼트를 찾을 수 없습니다!');
+        // 탭 구조를 유지하면서 나의 일정 컨테이너에만 데이터 표시
+        const container = document.getElementById('mySchedulesContainer');
+        if (!container) {
+            console.error('❌ mySchedulesContainer 엘리먼트를 찾을 수 없습니다!');
             return;
         }
-        console.log('✅ schedules-section 엘리먼트 찾음:', scheduleSection);
+        console.log('✅ mySchedulesContainer 엘리먼트 찾음:', container);
 
         if (!groupedSchedules || groupedSchedules.length === 0) {
-            scheduleSection.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon">📅</div>
-                    <h3>저장된 일정이 없습니다</h3>
+            container.innerHTML = `
+                <div class="placeholder-content">
+                    <div class="placeholder-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <h3>나의 일정이 없습니다</h3>
                     <p>통화 분석을 통해 일정을 생성해보세요.</p>
                 </div>
             `;
@@ -2582,20 +2651,7 @@ class MUFIDashboardExtension extends MUFIDashboard {
         const totalSchedules = groupedSchedules.reduce((sum, group) => sum + group.schedule_count, 0);
         const groupsHtml = groupedSchedules.map(group => this.createScheduleGroup(group)).join('');
         
-        scheduleSection.innerHTML = `
-            <div class="schedules-header">
-                <h2><i class="fas fa-calendar-alt"></i> 일정 관리</h2>
-                <div class="schedules-stats">
-                    <span class="stat-item">
-                        <i class="fas fa-phone"></i>
-                        총 ${groupedSchedules.length}개 통화
-                    </span>
-                    <span class="stat-item">
-                        <i class="fas fa-list"></i>
-                        총 ${totalSchedules}개 일정
-                    </span>
-                </div>
-            </div>
+        container.innerHTML = `
             <div class="schedules-groups">
                 ${groupsHtml}
             </div>
@@ -2751,7 +2807,7 @@ class MUFIDashboardExtension extends MUFIDashboard {
                         <i class="fas fa-envelope"></i>
                         메일 보내기
                     </button>
-                    <button class="btn btn-outline btn-small" onclick="window.dashboard.shareSchedule('${schedule.id}')">
+                    <button class="btn btn-outline btn-small" onclick="window.dashboard.openShareModal('${schedule.id}')">
                         <i class="fas fa-share-alt"></i>
                         공유
                     </button>
@@ -4287,41 +4343,11 @@ ${schedule.location ? `- 장소: ${schedule.location}` : ''}
     }
 
     // 일정 공유
+    // [DEPRECATED] 기존 링크 생성 방식 - 새로운 사용자 선택 방식으로 대체
     async shareSchedule(scheduleId) {
-        try {
-            this.showLoading('공유 링크를 생성하는 중...');
-
-            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedules/${scheduleId}/share`, {
-                method: 'POST',
-                body: JSON.stringify({
-                    share_type: 'link'
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`공유 실패: ${response.status}`);
-            }
-
-            const data = await response.json();
-            
-            if (data.success) {
-                // 공유 링크를 클립보드에 복사
-                const shareUrl = `${window.location.origin}${data.share_url}`;
-                navigator.clipboard.writeText(shareUrl).then(() => {
-                    this.showToast('공유 링크가 클립보드에 복사되었습니다!', 'success');
-                }).catch(() => {
-                    this.showToast(`공유 링크: ${shareUrl}`, 'info');
-                });
-            } else {
-                throw new Error(data.message || '공유에 실패했습니다.');
-            }
-
-        } catch (error) {
-            console.error('공유 오류:', error);
-            this.showToast(`공유 실패: ${error.message}`, 'error');
-        } finally {
-            this.hideLoading();
-        }
+        console.log('⚠️ 기존 shareSchedule 함수가 호출되었습니다. openShareModal을 사용하세요.');
+        // 새로운 사용자 선택 방식으로 리다이렉트
+        this.openShareModal(scheduleId);
     }
 
     // 파일 다운로드 헬퍼 함수
@@ -4336,6 +4362,1110 @@ ${schedule.location ? `- 장소: ${schedule.location}` : ''}
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
     }
+
+    // ===== 일정 탭 관련 기능 =====
+    
+    // 나의 일정 탭 로드
+    async loadMySchedulesTab() {
+        console.log('📅 나의 일정 탭 로드 시작');
+        
+        try {
+            // 기존 loadSchedules 함수 호출하여 데이터 가져오기
+            await this.loadSchedules();
+            
+            // 로드된 일정 데이터를 나의 일정 탭 컨테이너에 표시
+            const container = document.getElementById('mySchedulesContainer');
+            if (container && this.state.schedules) {
+                container.innerHTML = ''; // 기존 내용 지우기
+                
+                if (this.state.schedules.length > 0) {
+                    // 기존 일정 표시 로직 재사용
+                    const schedulesContent = this.createSchedulesContent(this.state.schedules);
+                    container.innerHTML = schedulesContent;
+                } else {
+                    // 일정이 없을 때 플레이스홀더 표시
+                    container.innerHTML = `
+                        <div class="placeholder-content">
+                            <div class="placeholder-icon">
+                                <i class="fas fa-calendar-check"></i>
+                            </div>
+                            <h3>나의 일정이 없습니다</h3>
+                            <p>통화 분석을 통해 일정을 생성해보세요.</p>
+                        </div>
+                    `;
+                }
+            }
+        } catch (error) {
+            console.error('❌ 나의 일정 로드 오류:', error);
+            const container = document.getElementById('mySchedulesContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="placeholder-content">
+                        <div class="placeholder-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <h3>일정 로드 중 오류가 발생했습니다</h3>
+                        <p>페이지를 새로고침하거나 잠시 후 다시 시도해주세요.</p>
+                    </div>
+                `;
+            }
+        }
+    }
+    
+    // 공유 일정 탭 로드
+    async loadSharedSchedulesTab() {
+        console.log('📅 공유 일정 탭 로드 시작');
+        
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            let userId = urlParams.get('user_id') || this.userInfo?.user_id;
+            
+            // 테스트용: DB에 실제 데이터가 있는 user_id 사용
+            if (!userId) {
+                userId = '5e462ae0-b67a-4f47-942f-81485142bb51'; // 테스트용 고정 ID
+                console.log('🔍 [DEBUG] 테스트용 고정 user_id 사용:', userId);
+            }
+            
+            console.log('📤 공유받은 일정 조회 중...');
+            
+            // 공유받은 일정 조회 API 호출
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedule-share/my-shared-schedules?user_id=${userId}`);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ 공유 일정 조회 실패:', errorText);
+                this.renderSharedSchedulesError();
+                return;
+            }
+            
+            const data = await response.json();
+            console.log('✅ 공유받은 일정 조회 성공:', data);
+            
+            this.displaySharedSchedules(data.schedules || []);
+            
+        } catch (error) {
+            console.error('❌ 공유 일정 로드 오류:', error);
+            this.renderSharedSchedulesError();
+        }
+    }
+    
+    // 공유 일정 표시
+    displaySharedSchedules(schedules) {
+        const container = document.querySelector('#shared-schedules .schedules-container');
+        if (!container) {
+            console.error('❌ 공유 일정 컨테이너를 찾을 수 없습니다!');
+            return;
+        }
+        
+        if (!schedules || schedules.length === 0) {
+            container.innerHTML = `
+                <div class="placeholder-content">
+                    <div class="placeholder-icon">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <h3>공유 일정이 없습니다</h3>
+                    <p>다른 사용자와 일정을 공유하거나 초대받은 일정을 확인해보세요.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const schedulesHtml = schedules.map(schedule => this.createSharedScheduleCard(schedule)).join('');
+        
+        container.innerHTML = `
+            <div class="schedules-grid">
+                ${schedulesHtml}
+            </div>
+        `;
+    }
+    
+    // 공유 일정 카드 생성 (캘린더 추가 버튼만)
+    createSharedScheduleCard(schedule) {
+        const startDate = new Date(schedule.start_datetime || schedule.start_date);
+        const endDate = new Date(schedule.end_datetime || schedule.end_date);
+        
+        return `
+            <div class="schedule-item shared-schedule" data-schedule-id="${schedule.id}">
+                <div class="schedule-header">
+                    <h3 class="schedule-title">${this.escapeHtml(schedule.title || '제목 없음')}</h3>
+                    <span class="schedule-badge shared">공유 일정</span>
+                </div>
+                
+                <div class="schedule-details">
+                    <div class="schedule-time">
+                        <i class="fas fa-clock"></i>
+                        <span>${this.formatDateTime(startDate)} - ${this.formatDateTime(endDate)}</span>
+                    </div>
+                    
+                    ${schedule.location ? `
+                        <div class="schedule-location">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>${this.escapeHtml(schedule.location)}</span>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="schedule-shared-by">
+                        <i class="fas fa-user"></i>
+                        <span>공유자: ${this.escapeHtml(schedule.owner_name || '알 수 없음')}</span>
+                    </div>
+                    
+                    ${schedule.description ? `
+                        <div class="schedule-description">
+                            ${this.escapeHtml(schedule.description)}
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div class="schedule-actions">
+                    <button class="btn btn-success btn-sm" onclick="dashboard.addToGoogleCalendar('${schedule.id}')">
+                        <i class="fas fa-calendar-plus"></i> 캘린더 추가
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    // 공유 일정 오류 표시
+    renderSharedSchedulesError() {
+        const container = document.querySelector('#shared-schedules .schedules-container');
+        if (container) {
+            container.innerHTML = `
+                <div class="placeholder-content">
+                    <div class="placeholder-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h3>공유 일정을 불러올 수 없습니다</h3>
+                    <p>잠시 후 다시 시도해주세요.</p>
+                </div>
+            `;
+        }
+    }
+    
+    // 일정 목록 HTML 생성 (기존 로직 재사용)
+    createSchedulesContent(schedules) {
+        if (!schedules || schedules.length === 0) {
+            return `
+                <div class="placeholder-content">
+                    <div class="placeholder-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <h3>나의 일정이 없습니다</h3>
+                    <p>통화 분석을 통해 일정을 생성해보세요.</p>
+                </div>
+            `;
+        }
+        
+        // 기존 schedules 표시 로직 활용
+        let content = '<div class="schedules-grid">';
+        
+        schedules.forEach((schedule, index) => {
+            const startDate = new Date(schedule.start_date);
+            const endDate = new Date(schedule.end_date);
+            
+            content += `
+                <div class="schedule-item" data-index="${index}">
+                    <div class="schedule-header">
+                        <h3 class="schedule-title">${this.escapeHtml(schedule.name || '제목 없음')}</h3>
+                        <span class="schedule-badge personal">나의 일정</span>
+                    </div>
+                    
+                    <div class="schedule-details">
+                        <div class="schedule-time">
+                            <i class="fas fa-clock"></i>
+                            <span>${this.formatDateTime(startDate)} - ${this.formatDateTime(endDate)}</span>
+                        </div>
+                        
+                        <div class="schedule-role">
+                            <i class="fas fa-user"></i>
+                            <span>${this.escapeHtml(schedule.role || '참석자')}</span>
+                        </div>
+                        
+                        <div class="schedule-description">
+                            ${this.escapeHtml(schedule.description || schedule.summary || '')}
+                        </div>
+                    </div>
+                    
+                    <div class="schedule-actions">
+                        <button class="btn btn-primary btn-sm" onclick="dashboard.downloadICS('${schedule.id}')">
+                            <i class="fas fa-download"></i> ICS 다운로드
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="dashboard.openShareModal('${schedule.id}')">
+                            <i class="fas fa-share-alt"></i> 공유
+                        </button>
+                        <button class="btn btn-success btn-sm" onclick="dashboard.openEmailModal('${schedule.id}')">
+                            <i class="fas fa-envelope"></i> 메일 보내기
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        content += '</div>';
+        return content;
+    }
+    
+    // 날짜 시간 포맷팅 헬퍼
+    formatDateTime(date) {
+        if (!date) {
+            return '날짜 없음';
+        }
+        
+        // 문자열인 경우 Date 객체로 변환
+        let dateObj;
+        if (typeof date === 'string') {
+            dateObj = new Date(date);
+        } else if (date instanceof Date) {
+            dateObj = date;
+        } else {
+            return '날짜 없음';
+        }
+        
+        // 유효한 날짜인지 확인
+        if (isNaN(dateObj.getTime())) {
+            return '날짜 없음';
+        }
+        
+        return dateObj.toLocaleString('ko-KR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    // ===== 알림 시스템 기능 =====
+    
+    // 알림 드롭다운 토글
+    toggleNotificationDropdown() {
+        const dropdown = this.elements.notificationDropdown;
+        const btn = this.elements.notificationBtn;
+        
+        if (dropdown.classList.contains('show')) {
+            this.closeNotificationDropdown();
+        } else {
+            this.openNotificationDropdown();
+        }
+    }
+    
+    // 알림 드롭다운 열기
+    openNotificationDropdown() {
+        const dropdown = this.elements.notificationDropdown;
+        const btn = this.elements.notificationBtn;
+        
+        dropdown.classList.add('show');
+        btn.classList.add('active');
+        
+        // 알림 목록 로드
+        this.loadNotifications();
+    }
+    
+    // 알림 드롭다운 닫기
+    closeNotificationDropdown() {
+        const dropdown = this.elements.notificationDropdown;
+        const btn = this.elements.notificationBtn;
+        
+        dropdown.classList.remove('show');
+        btn.classList.remove('active');
+    }
+    
+    // 알림 목록 로드
+    async loadNotifications() {
+        console.log('🔔 알림 목록 로드 시작');
+        
+        try {
+            // API 호출로 알림 가져오기
+            const notifications = await this.fetchNotifications();
+            
+            this.state.notifications = notifications;
+            this.updateNotificationBadge();
+            this.renderNotifications();
+            
+        } catch (error) {
+            console.error('❌ 알림 로드 오류:', error);
+            this.renderNotificationError();
+        }
+    }
+    
+    // 실제 API에서 알림 데이터 가져오기
+    async fetchNotifications() {
+        try {
+            const response = await this.authenticatedFetch('/api/notifications/');
+            if (response.ok) {
+                const data = await response.json();
+                return data.notifications.map(notification => ({
+                    id: notification.id,
+                    type: notification.type,
+                    title: notification.title,
+                    message: notification.message,
+                    timestamp: new Date(notification.created_at),
+                    isRead: notification.is_read,
+                    data: notification.data || {}
+                }));
+            } else {
+                console.error('알림 조회 실패:', response.status);
+                return [];
+            }
+        } catch (error) {
+            console.error('알림 조회 오류:', error);
+            return [];
+        }
+    }
+    
+    // 알림 목록 렌더링
+    renderNotifications() {
+        const list = this.elements.notificationList;
+        const notifications = this.state.notifications;
+        
+        if (!notifications || notifications.length === 0) {
+            list.innerHTML = `
+                <div class="notification-empty">
+                    <i class="fas fa-bell-slash"></i>
+                    <p>새로운 메시지가 없습니다</p>
+                </div>
+            `;
+            return;
+        }
+        
+        list.innerHTML = notifications.map(notification => this.createNotificationItem(notification)).join('');
+    }
+    
+    // 알림 항목 생성
+    createNotificationItem(notification) {
+        const timeAgo = this.getTimeAgo(notification.timestamp);
+        const iconClass = this.getNotificationIconClass(notification.type);
+        const actions = this.getNotificationActions(notification);
+        
+        return `
+            <div class="notification-item ${notification.isRead ? '' : 'unread'}" data-notification-id="${notification.id}">
+                <div class="notification-content">
+                    <div class="notification-icon ${iconClass}">
+                        ${this.getNotificationIcon(notification.type)}
+                    </div>
+                    
+                    <div class="notification-text">
+                        <div class="notification-title">${this.escapeHtml(notification.title)}</div>
+                        <div class="notification-message">${this.escapeHtml(notification.message)}</div>
+                        <div class="notification-time">${timeAgo}</div>
+                        
+                        ${actions ? `<div class="notification-actions">${actions}</div>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // 알림 타입별 아이콘 클래스
+    getNotificationIconClass(type) {
+        switch (type) {
+            case 'schedule_invite': return 'invite';
+            case 'schedule_accepted': return 'accepted';
+            case 'schedule_rejected': return 'rejected';
+            default: return 'invite';
+        }
+    }
+    
+    // 알림 타입별 아이콘
+    getNotificationIcon(type) {
+        switch (type) {
+            case 'schedule_invite': return '<i class="fas fa-calendar-plus"></i>';
+            case 'schedule_accepted': return '<i class="fas fa-check-circle"></i>';
+            case 'schedule_rejected': return '<i class="fas fa-times-circle"></i>';
+            default: return '<i class="fas fa-bell"></i>';
+        }
+    }
+    
+    // 알림 타입별 액션 버튼
+    getNotificationActions(notification) {
+        if (notification.type === 'schedule_invite' && !notification.isRead) {
+            return `
+                <button class="btn btn-success btn-sm" onclick="dashboard.acceptScheduleInvite('${notification.id}')">
+                    <i class="fas fa-check"></i> 수락
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="dashboard.rejectScheduleInvite('${notification.id}')">
+                    <i class="fas fa-times"></i> 거절
+                </button>
+            `;
+        }
+        return '';
+    }
+    
+    // 시간 경과 표시
+    getTimeAgo(timestamp) {
+        const now = new Date();
+        const diff = now - timestamp;
+        const minutes = Math.floor(diff / (1000 * 60));
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        
+        if (minutes < 1) return '방금 전';
+        if (minutes < 60) return `${minutes}분 전`;
+        if (hours < 24) return `${hours}시간 전`;
+        if (days < 7) return `${days}일 전`;
+        
+        return timestamp.toLocaleDateString('ko-KR');
+    }
+    
+    // 알림 배지 업데이트
+    updateNotificationBadge() {
+        const badge = this.elements.notificationBadge;
+        const unreadCount = this.state.notifications.filter(n => !n.isRead).length;
+        
+        this.state.unreadNotificationCount = unreadCount;
+        
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    
+    // 모든 알림 읽음 처리
+    async markAllNotificationsRead() {
+        console.log('📖 모든 알림 읽음 처리');
+        
+        try {
+            const response = await this.authenticatedFetch('/api/notifications/mark-read', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})  // notification_id가 없으면 모든 알림 읽음 처리
+            });
+            
+            if (response.ok) {
+                // 로컬 상태 업데이트
+                this.state.notifications.forEach(notification => {
+                    notification.isRead = true;
+                });
+                
+                this.updateNotificationBadge();
+                this.renderNotifications();
+                
+                console.log('✅ 모든 알림 읽음 처리 완료');
+            } else {
+                console.error('❌ 알림 읽음 처리 실패:', response.status);
+            }
+        } catch (error) {
+            console.error('❌ 알림 읽음 처리 오류:', error);
+        }
+    }
+    
+    // 일정 초대 수락
+    async acceptScheduleInvite(notificationId) {
+        console.log('✅ 일정 초대 수락:', notificationId);
+        
+        try {
+            const notification = this.state.notifications.find(n => n.id === notificationId);
+            if (!notification) return;
+            
+            // 서버에 수락 API 호출
+            const response = await this.authenticatedFetch('/api/schedule-share/respond', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    schedule_id: notification.data.schedule_id,
+                    action: 'accept' 
+                })
+            });
+            
+            if (response.ok) {
+                // 알림을 읽음 처리하고 타입 변경
+                notification.isRead = true;
+                notification.type = 'schedule_accepted';
+                notification.title = '일정 수락됨';
+                notification.message = `"${notification.data.schedule_title}" 일정을 수락했습니다.`;
+                
+                this.updateNotificationBadge();
+                this.renderNotifications();
+                
+                // 공유 일정 탭 새로고침
+                this.loadSharedSchedulesTab();
+                
+                console.log('✅ 일정 초대 수락 완료');
+            } else {
+                const errorData = await response.json();
+                console.error('❌ 일정 수락 실패:', errorData);
+                alert('일정 수락에 실패했습니다.');
+            }
+            
+        } catch (error) {
+            console.error('❌ 일정 초대 수락 오류:', error);
+            alert('일정 수락 중 오류가 발생했습니다.');
+        }
+    }
+    
+    // 일정 초대 거절
+    async rejectScheduleInvite(notificationId) {
+        console.log('❌ 일정 초대 거절:', notificationId);
+        
+        try {
+            const notification = this.state.notifications.find(n => n.id === notificationId);
+            if (!notification) return;
+            
+            // 서버에 거절 API 호출
+            const response = await this.authenticatedFetch('/api/schedule-share/respond', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    schedule_id: notification.data.schedule_id,
+                    action: 'reject' 
+                })
+            });
+            
+            if (response.ok) {
+                // 알림을 읽음 처리하고 타입 변경
+                notification.isRead = true;
+                notification.type = 'schedule_rejected';
+                notification.title = '일정 거절됨';
+                notification.message = `"${notification.data.schedule_title}" 일정을 거절했습니다.`;
+                
+                this.updateNotificationBadge();
+                this.renderNotifications();
+                
+                console.log('✅ 일정 초대 거절 완료');
+            } else {
+                const errorData = await response.json();
+                console.error('❌ 일정 거절 실패:', errorData);
+                alert('일정 거절에 실패했습니다.');
+            }
+            
+        } catch (error) {
+            console.error('❌ 일정 초대 거절 오류:', error);
+            alert('일정 거절 중 오류가 발생했습니다.');
+        }
+    }
+    
+    // 모든 알림 보기
+    viewAllNotifications() {
+        console.log('📋 모든 알림 보기');
+        // TODO: 알림 페이지로 이동하거나 모달 열기
+        alert('모든 알림 보기 페이지를 구현 중입니다.');
+    }
+    
+    // 알림 오류 렌더링
+    renderNotificationError() {
+        const list = this.elements.notificationList;
+        list.innerHTML = `
+            <div class="notification-empty">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>알림을 불러오는 중 오류가 발생했습니다</p>
+            </div>
+        `;
+    }
+    
+    // 대시보드 로드 시 알림 초기화
+    async initializeNotifications() {
+        console.log('🔔 알림 시스템 초기화');
+        
+        try {
+            // 초기 알림 데이터 로드 (배지만 업데이트)
+            const notifications = await this.fetchNotifications();
+            this.state.notifications = notifications;
+            this.updateNotificationBadge();
+            
+        } catch (error) {
+            console.error('❌ 알림 초기화 오류:', error);
+        }
+    }
+    
+    // 공유 일정 탭 로드
+    async loadSharedSchedulesTab() {
+        console.log('📋 공유 일정 탭 로드');
+        
+        const sharedContainer = document.getElementById('sharedSchedulesContainer');
+        console.log('🔍 [DEBUG] sharedContainer 찾기:', sharedContainer);
+        if (!sharedContainer) {
+            console.error('❌ sharedSchedulesContainer 엘리먼트를 찾을 수 없습니다');
+            return;
+        }
+        
+        // 현재 사용자 확인
+        console.log('🔍 [DEBUG] 현재 사용자 정보 확인:', {
+            state: this.state,
+            currentUser: this.state?.currentUser,
+            userId: this.state?.currentUser?.id
+        });
+        
+        if (!this.state.currentUser || !this.state.currentUser.id) {
+            console.error('❌ 현재 사용자 정보가 없습니다');
+            sharedContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h3>사용자 인증 필요</h3>
+                    <p>로그인이 필요합니다.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        try {
+            console.log('🔍 [DEBUG] 공유 일정 조회 요청:', {
+                user_id: this.state.currentUser.id,
+                url: `${this.config.apiBaseUrl}/api/schedule-share/my-shared-schedules?user_id=${this.state.currentUser.id}`
+            });
+            
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedule-share/my-shared-schedules?user_id=${this.state.currentUser.id}`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('🔍 [DEBUG] 공유 일정 조회 응답:', data);
+                const sharedSchedules = data.schedules || [];
+                console.log('🔍 [DEBUG] 공유 일정 개수:', sharedSchedules.length);
+                
+                if (sharedSchedules.length === 0) {
+                    sharedContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-share-alt"></i>
+                            <h3>공유받은 일정이 없습니다</h3>
+                            <p>다른 사용자로부터 공유받은 일정이 여기에 표시됩니다.</p>
+                        </div>
+                    `;
+                } else {
+                    const schedulesHtml = sharedSchedules.map(schedule => this.createSharedScheduleCard(schedule)).join('');
+                    sharedContainer.innerHTML = `
+                        <div class="schedules-grid">
+                            ${schedulesHtml}
+                        </div>
+                    `;
+                }
+            } else {
+                console.error('공유 일정 조회 실패:', response.status);
+                sharedContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>일정을 불러올 수 없습니다</h3>
+                        <p>공유받은 일정을 불러오는 중 오류가 발생했습니다.</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('공유 일정 로드 오류:', error);
+            sharedContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h3>일정을 불러올 수 없습니다</h3>
+                    <p>네트워크 오류가 발생했습니다.</p>
+                </div>
+            `;
+        }
+    }
+    
+    // 공유받은 일정 카드 생성 (나의 일정과 동일한 UI/기능)
+    createSharedScheduleCard(schedule) {
+        console.log('🔍 [DEBUG] createSharedScheduleCard 호출 - schedule:', schedule);
+        
+        // participants 처리 (문자열 배열 또는 객체 배열 대응)
+        let participantsText = '참여자 없음';
+        if (schedule.participants && Array.isArray(schedule.participants) && schedule.participants.length > 0) {
+            // 문자열 배열인 경우
+            if (typeof schedule.participants[0] === 'string') {
+                participantsText = schedule.participants.join(', ');
+            } 
+            // 객체 배열인 경우 (name 필드 추출)
+            else if (typeof schedule.participants[0] === 'object' && schedule.participants[0].name) {
+                participantsText = schedule.participants.map(p => p.name).join(', ');
+            }
+        }
+        
+        const typeIcon = schedule.type === 'group' ? '👥' : '👤';
+        const typeText = schedule.type === 'group' ? '단체일정' : '개인일정';
+        
+        const startDate = schedule.start_datetime ? new Date(schedule.start_datetime).toLocaleDateString('ko-KR') : '';
+        const startTime = schedule.start_datetime ? new Date(schedule.start_datetime).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'}) : '';
+
+        console.log('🔍 [DEBUG] 공유 카드 생성 정보 - 제목:', schedule.title, '참여자:', participantsText, '타입:', typeText);
+
+        return `
+            <div class="schedule-card" data-schedule-id="${schedule.id}">
+                <div class="schedule-card-header">
+                    <div class="schedule-type">
+                        <span class="type-icon">${typeIcon}</span>
+                        <span class="type-text">${typeText}</span>
+                        <span class="shared-badge">📤 공유받음</span>
+                    </div>
+                    <div class="schedule-date">
+                        ${startDate} ${startTime}
+                    </div>
+                </div>
+                
+                <div class="schedule-card-body">
+                    <h3 class="schedule-title">${this.escapeHtml(schedule.title)}</h3>
+                    <p class="schedule-description">${this.escapeHtml(schedule.description || '')}</p>
+                    
+                    <div class="schedule-details">
+                        ${schedule.location && schedule.location !== '미정' ? `
+                            <div class="schedule-detail">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span>${this.escapeHtml(schedule.location)}</span>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="schedule-detail">
+                            <i class="fas fa-users"></i>
+                            <span>${this.escapeHtml(participantsText)}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="schedule-card-actions">
+                    <button class="btn btn-primary btn-small" onclick="window.dashboard.addToGoogleCalendar('${schedule.id}')">
+                        <i class="fas fa-calendar-plus"></i>
+                        캘린더 추가
+                    </button>
+                    <button class="btn btn-secondary btn-small" onclick="window.dashboard.sendScheduleEmail('${schedule.id}')">
+                        <i class="fas fa-envelope"></i>
+                        메일 보내기
+                    </button>
+                    <button class="btn btn-outline btn-small" onclick="window.dashboard.openShareModal('${schedule.id}')">
+                        <i class="fas fa-share-alt"></i>
+                        공유
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    // ===== 공유 모달 기능 =====
+    
+    openShareModal(scheduleId) {
+        console.log('🔗 공유 모달 열기:', scheduleId);
+        
+        this.currentShareScheduleId = scheduleId;
+        this.selectedShareUsers = [];
+        
+        const modal = document.getElementById('shareModal');
+        modal.style.display = 'flex';
+        
+        // 사용자 목록 로드
+        this.loadShareUsers();
+        
+        // 검색 이벤트 바인딩
+        const searchInput = document.getElementById('userSearchInput');
+        searchInput.addEventListener('input', (e) => this.filterShareUsers(e.target.value));
+    }
+    
+    closeShareModal() {
+        const modal = document.getElementById('shareModal');
+        modal.style.display = 'none';
+        
+        // 상태 초기화
+        this.currentShareScheduleId = null;
+        this.selectedShareUsers = [];
+        this.updateSelectedUsers();
+        
+        // 검색 입력 초기화
+        const searchInput = document.getElementById('userSearchInput');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+    }
+    
+    async loadShareUsers() {
+        console.log('👥 공유 사용자 목록 로드');
+        
+        try {
+            // 현재 사용자 ID 가져오기
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentUserId = urlParams.get('user_id') || this.userInfo?.user_id || '5e462ae0-b67a-4f47-942f-81485142bb51';
+            
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedule-share/users?current_user_id=${currentUserId}`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                this.allShareUsers = data.users || [];
+                this.renderShareUsers(this.allShareUsers);
+            } else {
+                console.error('사용자 목록 로드 실패:', response.status);
+                this.renderShareUsersError();
+            }
+        } catch (error) {
+            console.error('사용자 목록 로드 오류:', error);
+            this.renderShareUsersError();
+        }
+    }
+    
+    renderShareUsers(users) {
+        const container = document.getElementById('shareUsersList');
+        
+        if (!users || users.length === 0) {
+            container.innerHTML = `
+                <div class="empty-users">
+                    <i class="fas fa-users"></i>
+                    <p>등록된 사용자가 없습니다</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = users.map(user => this.createShareUserItem(user)).join('');
+    }
+    
+    createShareUserItem(user) {
+        const isSelected = this.selectedShareUsers.some(u => u.id === user.id);
+        const initials = user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+        
+        return `
+            <div class="user-item ${isSelected ? 'selected' : ''}" 
+                 onclick="dashboard.toggleShareUser('${user.id}', '${this.escapeHtml(user.name)}', '${this.escapeHtml(user.email)}')">
+                <div class="user-avatar-small">
+                    ${user.picture ? 
+                        `<img src="${user.picture}" alt="${user.name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : 
+                        initials
+                    }
+                </div>
+                <div class="user-info-share">
+                    <div class="user-name-share">${this.escapeHtml(user.name || '이름 없음')}</div>
+                    <div class="user-email-share">${this.escapeHtml(user.email)}</div>
+                </div>
+                ${isSelected ? '<i class="fas fa-check text-primary"></i>' : ''}
+            </div>
+        `;
+    }
+    
+    toggleShareUser(userId, userName, userEmail) {
+        const existingIndex = this.selectedShareUsers.findIndex(u => u.id === userId);
+        
+        if (existingIndex >= 0) {
+            // 선택 해제
+            this.selectedShareUsers.splice(existingIndex, 1);
+        } else {
+            // 선택 추가
+            this.selectedShareUsers.push({
+                id: userId,
+                name: userName,
+                email: userEmail
+            });
+        }
+        
+        // UI 업데이트
+        this.renderShareUsers(this.allShareUsers);
+        this.updateSelectedUsers();
+        this.updateShareSubmitButton();
+    }
+    
+    updateSelectedUsers() {
+        const container = document.getElementById('selectedUsers');
+        const tagsContainer = document.getElementById('selectedUsersTags');
+        
+        if (this.selectedShareUsers.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+        
+        container.style.display = 'block';
+        tagsContainer.innerHTML = this.selectedShareUsers.map(user => `
+            <div class="selected-user-tag">
+                ${this.escapeHtml(user.name)}
+                <span class="remove-user" onclick="dashboard.removeSelectedUser('${user.id}')">×</span>
+            </div>
+        `).join('');
+    }
+    
+    removeSelectedUser(userId) {
+        this.selectedShareUsers = this.selectedShareUsers.filter(u => u.id !== userId);
+        this.renderShareUsers(this.allShareUsers);
+        this.updateSelectedUsers();
+        this.updateShareSubmitButton();
+    }
+    
+    updateShareSubmitButton() {
+        const button = document.getElementById('shareSubmitBtn');
+        button.disabled = this.selectedShareUsers.length === 0;
+    }
+    
+    filterShareUsers(searchTerm) {
+        if (!this.allShareUsers) return;
+        
+        const filtered = this.allShareUsers.filter(user => 
+            user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            user.email.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        
+        this.renderShareUsers(filtered);
+    }
+    
+    async sendShareInvitations() {
+        if (!this.currentShareScheduleId || this.selectedShareUsers.length === 0) {
+            return;
+        }
+        
+        console.log('📤 공유 초대 전송:', this.currentShareScheduleId, this.selectedShareUsers);
+        
+        try {
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedule-share/share`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    schedule_id: this.currentShareScheduleId,
+                    share_with_emails: this.selectedShareUsers.map(u => u.email)
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ 공유 초대 전송 완료:', data);
+                
+                this.closeShareModal();
+                this.showToast(`${data.shared_count || this.selectedShareUsers.length}명에게 일정을 공유했습니다.`, 'success');
+            } else {
+                const errorData = await response.json();
+                console.error('❌ 공유 초대 전송 실패:', errorData);
+                this.showToast('일정 공유에 실패했습니다.', 'error');
+            }
+        } catch (error) {
+            console.error('❌ 공유 초대 전송 오류:', error);
+            this.showToast('일정 공유 중 오류가 발생했습니다.', 'error');
+        }
+    }
+    
+    renderShareUsersError() {
+        const container = document.getElementById('shareUsersList');
+        container.innerHTML = `
+            <div class="empty-users">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>사용자 목록을 불러올 수 없습니다</p>
+            </div>
+        `;
+    }
+    
+    // 공유 초대 수락
+    async acceptScheduleInvite(notificationId) {
+        console.log('✅ 공유 초대 수락:', notificationId);
+        
+        try {
+            // 현재 사용자 확인
+            if (!this.state.currentUser || !this.state.currentUser.id) {
+                console.error('❌ 현재 사용자 정보가 없습니다');
+                this.showToast('사용자 인증이 필요합니다.', 'error');
+                return;
+            }
+            
+            // 알림에서 schedule_id 추출 (실제 구현에서는 notification 데이터에서 가져와야 함)
+            const notification = this.state.notifications.find(n => n.id === notificationId);
+            if (!notification || !notification.data || !notification.data.schedule_id) {
+                console.error('❌ 알림 데이터에서 schedule_id를 찾을 수 없습니다');
+                this.showToast('알림 정보가 올바르지 않습니다.', 'error');
+                return;
+            }
+            
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedule-share/respond?current_user_id=${this.state.currentUser.id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    schedule_id: notification.data.schedule_id,
+                    action: 'accept'
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ 공유 초대 수락 완료:', data);
+                
+                // 알림 목록 새로고침 (수락한 알림은 서버에서 삭제됨)
+                await this.loadNotifications();
+                this.renderNotifications();
+                this.updateNotificationBadge();
+                
+                // 공유 일정 탭 새로고침 (현재 탭이 공유 일정인 경우)
+                const activeTab = document.querySelector('.schedule-tabs .tab-button.active');
+                if (activeTab && activeTab.dataset.tab === 'shared-schedules') {
+                    await this.loadSharedSchedulesTab();
+                }
+                
+                this.showToast('일정 공유를 수락했습니다.', 'success');
+            } else {
+                const errorData = await response.json();
+                console.error('❌ 공유 초대 수락 실패:', errorData);
+                this.showToast('일정 공유 수락에 실패했습니다.', 'error');
+            }
+        } catch (error) {
+            console.error('❌ 공유 초대 수락 오류:', error);
+            this.showToast('일정 공유 수락 중 오류가 발생했습니다.', 'error');
+        }
+    }
+    
+    // 공유 초대 거절
+    async rejectScheduleInvite(notificationId) {
+        console.log('❌ 공유 초대 거절:', notificationId);
+        
+        try {
+            // 현재 사용자 확인
+            if (!this.state.currentUser || !this.state.currentUser.id) {
+                console.error('❌ 현재 사용자 정보가 없습니다');
+                this.showToast('사용자 인증이 필요합니다.', 'error');
+                return;
+            }
+            
+            // 알림에서 schedule_id 추출
+            const notification = this.state.notifications.find(n => n.id === notificationId);
+            if (!notification || !notification.data || !notification.data.schedule_id) {
+                console.error('❌ 알림 데이터에서 schedule_id를 찾을 수 없습니다');
+                this.showToast('알림 정보가 올바르지 않습니다.', 'error');
+                return;
+            }
+            
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedule-share/respond?current_user_id=${this.state.currentUser.id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    schedule_id: notification.data.schedule_id,
+                    action: 'reject'
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ 공유 초대 거절 완료:', data);
+                
+                // 알림 목록 새로고침 (거절한 알림은 서버에서 삭제됨)
+                await this.loadNotifications();
+                this.renderNotifications();
+                this.updateNotificationBadge();
+                
+                this.showToast('일정 공유를 거절했습니다.', 'info');
+            } else {
+                const errorData = await response.json();
+                console.error('❌ 공유 초대 거절 실패:', errorData);
+                this.showToast('일정 공유 거절에 실패했습니다.', 'error');
+            }
+        } catch (error) {
+            console.error('❌ 공유 초대 거절 오류:', error);
+            this.showToast('일정 공유 거절 중 오류가 발생했습니다.', 'error');
+        }
+    }
+    
+    // 개별 알림 읽음 처리
+    async markNotificationRead(notificationId) {
+        try {
+            const response = await this.authenticatedFetch(`/api/notifications/${notificationId}/read`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                // 로컬 상태 업데이트
+                const notification = this.state.notifications.find(n => n.id === notificationId);
+                if (notification) {
+                    notification.isRead = true;
+                }
+            }
+        } catch (error) {
+            console.error('알림 읽음 처리 오류:', error);
+        }
+    }
+    
+
 }
 
 export default MUFIDashboardExtension;

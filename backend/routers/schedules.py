@@ -40,10 +40,11 @@ async def get_user_schedules(
         
         print(f"🔍 [DEBUG] 페이지네이션 - page: {page}, limit: {limit}, offset: {offset}")
         
-        # 사용자의 일정 조회
+        # 사용자의 일정 조회 (공유받은 일정 제외: share != true)
         result = supabase.table("schedules")\
             .select("*")\
             .eq("user_id", user_id)\
+            .neq("share", True)\
             .order("created_at", desc=True)\
             .range(offset, offset + limit - 1)\
             .execute()
@@ -54,10 +55,11 @@ async def get_user_schedules(
         if schedules:
             print(f"🔍 [DEBUG] 첫 번째 일정: {schedules[0].get('title', 'N/A')}")
         
-        # 총 개수 조회
+        # 총 개수 조회 (공유받은 일정 제외)
         count_result = supabase.table("schedules")\
             .select("*", count="exact")\
             .eq("user_id", user_id)\
+            .neq("share", True)\
             .execute()
         
         total = count_result.count if count_result.count else 0
