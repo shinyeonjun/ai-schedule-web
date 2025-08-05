@@ -14,7 +14,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/schedules", tags=["schedules"])
+router = APIRouter(tags=["schedules"])
 db_service = DatabaseService()
 ics_service = ICSService()
 

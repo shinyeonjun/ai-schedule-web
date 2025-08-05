@@ -17,7 +17,7 @@ from config.config import settings
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/gmail", tags=["Gmail"])
+router = APIRouter(tags=["Gmail"])
 
 # 서비스 초기화
 gmail_service = GmailService()

@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     # Google OAuth
     google_client_id: str
     google_client_secret: str
-    google_redirect_uri: str = "https://mufi-schedule.loca.lt/auth/google/callback"
+    google_redirect_uri: str = "https://mufischedule.pagekite.me/auth/google/callback"
     
     # OpenAI
     openai_api_key: str

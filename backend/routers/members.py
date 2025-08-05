@@ -11,7 +11,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/members", tags=["members"])
+router = APIRouter(tags=["members"])
 db_service = DatabaseService()
 
 

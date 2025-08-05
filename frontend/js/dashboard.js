@@ -555,7 +555,7 @@ class MUFIDashboard {
                                         <div class="schedule-field">
                                             <i class="fas fa-clock"></i>
                                             <span class="editable-content" onclick="window.dashboard.editScheduleField(this, 'start_datetime', ${originalIndex})">
-                                                ${this.formatDateTime(schedule.start_datetime)}
+                                                시작: ${this.formatDateTime(schedule.start_datetime)}
                                             </span>
                                         </div>
                                     ` : ''}
@@ -563,7 +563,7 @@ class MUFIDashboard {
                                         <div class="schedule-field">
                                             <i class="fas fa-clock"></i>
                                             <span class="editable-content" onclick="window.dashboard.editScheduleField(this, 'end_datetime', ${originalIndex})">
-                                                ${this.formatDateTime(schedule.end_datetime)}
+                                                종료: ${this.formatDateTime(schedule.end_datetime)}
                                             </span>
                                         </div>
                                     ` : ''}
@@ -618,7 +618,7 @@ class MUFIDashboard {
                                         <div class="schedule-field">
                                             <i class="fas fa-clock"></i>
                                             <span class="editable-content" onclick="window.dashboard.editScheduleField(this, 'start_datetime', ${originalIndex})">
-                                                ${this.formatDateTime(schedule.start_datetime)}
+                                                시작: ${this.formatDateTime(schedule.start_datetime)}
                                             </span>
                                         </div>
                                     ` : ''}
@@ -626,7 +626,7 @@ class MUFIDashboard {
                                         <div class="schedule-field">
                                             <i class="fas fa-clock"></i>
                                             <span class="editable-content" onclick="window.dashboard.editScheduleField(this, 'end_datetime', ${originalIndex})">
-                                                ${this.formatDateTime(schedule.end_datetime)}
+                                                종료: ${this.formatDateTime(schedule.end_datetime)}
                                             </span>
                                         </div>
                                     ` : ''}
@@ -2105,6 +2105,179 @@ const additionalStyles = `
         border-top: 1px solid rgba(0, 0, 0, 0.1);
     }
 
+    /* 날짜/시간 편집 모달 스타일 */
+    .datetime-picker-container {
+        padding: 8px;
+    }
+
+    .field-description {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        padding: 12px 16px;
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        border: 1px solid #93c5fd;
+        border-radius: 8px;
+        color: #1e40af;
+        font-weight: 500;
+    }
+
+    .field-description i {
+        color: #2563eb;
+        font-size: 16px;
+    }
+
+    .datetime-inputs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .date-input-group,
+    .time-input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .date-input-group label,
+    .time-input-group label {
+        font-weight: 600;
+        color: #374151;
+        font-size: 14px;
+    }
+
+    .datetime-input {
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: all 0.2s ease;
+        background: #ffffff;
+    }
+
+    .datetime-input:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        background: #fafbff;
+    }
+
+    .datetime-input:hover {
+        border-color: #d1d5db;
+    }
+
+    .datetime-input.invalid {
+        border-color: #ef4444 !important;
+        background-color: #fef2f2 !important;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+    }
+
+    .datetime-input.valid {
+        border-color: #10b981 !important;
+        background-color: #f0fdf4 !important;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+    }
+
+    /* 일반 입력 필드 유효성 검사 스타일 */
+    .inline-edit-input.invalid {
+        border-color: #ef4444 !important;
+        background-color: #fef2f2 !important;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+    }
+
+    .inline-edit-input.valid {
+        border-color: #10b981 !important;
+        background-color: #f0fdf4 !important;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+    }
+
+
+
+    .modal-buttons {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .modal-buttons .btn {
+        padding: 12px 20px;
+        font-weight: 600;
+        font-size: 14px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .modal-buttons .btn-primary {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: white;
+        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+    }
+
+    .modal-buttons .btn-primary:hover:not(:disabled) {
+        background: linear-gradient(135deg, #1d4ed8, #1e40af);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.4);
+    }
+
+    .modal-buttons .btn-primary:disabled {
+        background: #9ca3af !important;
+        opacity: 0.5 !important;
+        cursor: not-allowed !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    .modal-buttons .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
+    }
+
+    .modal-buttons .btn-secondary:hover {
+        background: #e5e7eb;
+        color: #111827;
+        transform: translateY(-1px);
+    }
+
+    .modal-buttons .btn-danger {
+        background: #ef4444;
+        color: white;
+        box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+    }
+
+    .modal-buttons .btn-danger:hover {
+        background: #dc2626;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px rgba(239, 68, 68, 0.4);
+    }
+
+    /* 모바일 반응형 */
+    @media (max-width: 768px) {
+        .datetime-inputs {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        
+        .modal-buttons {
+            flex-direction: column;
+        }
+        
+        .modal-buttons .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
     /* 분석 결과 편집 스타일 */
     .result-header {
         display: flex;
@@ -2395,11 +2568,13 @@ class MUFIDashboardExtension extends MUFIDashboard {
         const schedule = this.state.currentAnalysisData.schedules[index];
         const currentValue = schedule[field] || '';
         
+        console.log('🔧 날짜 편집 시작:', { field, index, currentValue, schedule });
+        
         let input;
         if (field === 'start_datetime' || field === 'end_datetime') {
-            input = document.createElement('input');
-            input.type = 'datetime-local';
-            input.value = currentValue ? new Date(currentValue).toISOString().slice(0, 16) : '';
+            // 모달 다이얼로그를 사용한 날짜/시간 선택
+            this.showDateTimePickerModal(element, field, index, currentValue);
+            return;
         } else {
             input = document.createElement('input');
             input.type = 'text';
@@ -2413,33 +2588,375 @@ class MUFIDashboardExtension extends MUFIDashboard {
         input.style.borderRadius = '4px';
         input.style.fontSize = 'inherit';
         input.style.fontFamily = 'inherit';
+        input.style.zIndex = '1000';
+        input.style.position = 'relative';
         
-        const saveEdit = () => {
+        let isEditing = true; // 편집 중 플래그
+        
+                const saveEdit = () => {
+            if (!isEditing) return; // 이미 저장된 경우 중복 실행 방지
+            
             const newValue = input.value.trim();
-            if (field === 'start_datetime' || field === 'end_datetime') {
-                schedule[field] = newValue ? new Date(newValue).toISOString() : null;
-                element.textContent = newValue ? this.formatDateTime(schedule[field]) : '';
-            } else {
-                schedule[field] = newValue;
-                element.textContent = newValue;
+            
+            // 빈 값 검증 - 빈 값은 절대 허용하지 않음
+            if (!newValue) {
+                this.showToast('❌ 내용을 반드시 입력해야 합니다. 빈 값은 저장할 수 없습니다.', 'error');
+                input.focus();
+                input.classList.add('invalid');
+                // 진동 효과 (지원되는 브라우저에서)
+                if (navigator.vibrate) {
+                    navigator.vibrate(200);
+                }
+                return;
             }
+            
+            // 값 저장
+            schedule[field] = newValue;
+            element.textContent = newValue;
+            
+            if (newValue !== currentValue) {
+                this.showToast('✅ 내용이 성공적으로 수정되었습니다.', 'success');
+            }
+            isEditing = false;
         };
         
-        input.addEventListener('blur', saveEdit);
+        const cancelEdit = () => {
+            if (!isEditing) return;
+                element.textContent = currentValue;
+            isEditing = false;
+        };
+        
+        // blur 이벤트는 약간의 지연을 두어 Enter나 Escape 키 이벤트와 충돌 방지
+        input.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (isEditing) saveEdit();
+            }, 100);
+        });
+        
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 saveEdit();
             } else if (e.key === 'Escape') {
-                element.textContent = field === 'start_datetime' || field === 'end_datetime' 
-                    ? this.formatDateTime(currentValue) : currentValue;
+                e.preventDefault();
+                cancelEdit();
             }
         });
         
+                // 실시간 유효성 검사
+        const validateInput = () => {
+            const value = input.value.trim();
+            const isValid = value.length > 0;
+            
+            // CSS 클래스로 스타일 적용
+            input.classList.remove('valid', 'invalid');
+            if (isValid) {
+                input.classList.add('valid');
+            } else {
+                input.classList.add('invalid');
+            }
+            
+            console.log('🔧 텍스트 입력 유효성 검사:', {
+                field,
+                value: value.substring(0, 20) + (value.length > 20 ? '...' : ''),
+                isValid
+            });
+            
+            return isValid;
+        };
+        
+        input.addEventListener('input', validateInput);
+        input.addEventListener('paste', () => {
+            setTimeout(validateInput, 10); // paste 이벤트 후 검증
+        });
+        
+        // 편집 시작
         element.textContent = '';
         element.appendChild(input);
         input.focus();
+        input.select();
+        
+        // 초기 유효성 검사
+        setTimeout(validateInput, 10);
     }
+
+    // 날짜/시간 선택 모달 표시
+    showDateTimePickerModal(element, field, index, currentValue) {
+        const schedule = this.state.currentAnalysisData.schedules[index];
+        
+        // 모달에서 사용할 수 있도록 element를 임시 저장
+        this.currentEditingElement = element;
+        this.currentEditingField = field;
+        this.currentEditingIndex = index;
+        
+        // 현재 값을 파싱하여 입력 필드에 설정할 값 준비
+        let dateValue = '';
+        let timeValue = '';
+        
+        if (currentValue) {
+            try {
+                const date = new Date(currentValue);
+                if (!isNaN(date.getTime())) {
+                    // 로컬 시간대로 변환
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const hours = String(date.getHours()).padStart(2, '0');
+                    const minutes = String(date.getMinutes()).padStart(2, '0');
+                    
+                    dateValue = `${year}-${month}-${day}`;
+                    timeValue = `${hours}:${minutes}`;
+                }
+            } catch (error) {
+                console.error('날짜 파싱 오류:', error);
+                // 기본값으로 현재 시간 설정
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                
+                dateValue = `${year}-${month}-${day}`;
+                timeValue = `${hours}:${minutes}`;
+            }
+        }
+        
+        // 빈 값인 경우나 파싱에 실패한 경우 현재 시간으로 강제 초기화
+        if (!dateValue || !timeValue) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            
+            dateValue = `${year}-${month}-${day}`;
+            timeValue = `${hours}:${minutes}`;
+            
+            console.log('🔧 빈 값 감지 - 현재 시간으로 강제 설정:', {
+                dateValue,
+                timeValue
+            });
+        }
+
+        const fieldLabel = field === 'start_datetime' ? '시작 날짜/시간' : '종료 날짜/시간';
+        
+        const modalContent = `
+            <div class="datetime-picker-container">
+                <p class="field-description">
+                    <i class="fas fa-calendar-alt"></i>
+                    ${fieldLabel}을 설정해주세요
+                </p>
+                
+                <div class="datetime-inputs">
+                    <div class="date-input-group">
+                        <label for="editDate">날짜</label>
+                        <input type="date" id="editDate" class="form-control datetime-input" value="${dateValue}" required>
+                    </div>
+                    
+                    <div class="time-input-group">
+                        <label for="editTime">시간</label>
+                        <input type="time" id="editTime" class="form-control datetime-input" value="${timeValue}" step="300" required>
+                    </div>
+                </div>
+                
+
+                
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="window.dashboard.hideModal()">취소</button>
+                    <button type="button" class="btn btn-primary" id="saveDateTimeBtn" onclick="window.dashboard.saveDateTimeEdit()">저장</button>
+                </div>
+            </div>
+        `;
+
+        this.showModal(`${fieldLabel} 편집`, modalContent);
+        
+        // 모달이 표시된 후 이벤트 리스너 설정
+        setTimeout(() => {
+            const dateInput = document.getElementById('editDate');
+            const timeInput = document.getElementById('editTime');
+            const saveBtn = document.getElementById('saveDateTimeBtn');
+            
+            if (dateInput && timeInput && saveBtn) {
+                // 입력 필드 유효성 검사 함수
+                const validateInputs = () => {
+                    const hasDate = dateInput.value.trim() !== '';
+                    const hasTime = timeInput.value.trim() !== '';
+                    const isValid = hasDate && hasTime;
+                    
+                    // 저장 버튼 활성화/비활성화
+                    saveBtn.disabled = !isValid;
+                    
+                    // 입력 필드 스타일 업데이트 (CSS 클래스 사용)
+                    dateInput.classList.remove('valid', 'invalid');
+                    timeInput.classList.remove('valid', 'invalid');
+                    
+                    if (hasDate) {
+                        dateInput.classList.add('valid');
+                    } else {
+                        dateInput.classList.add('invalid');
+                    }
+                    
+                    if (hasTime) {
+                        timeInput.classList.add('valid');
+                    } else {
+                        timeInput.classList.add('invalid');
+                    }
+                    
+                    console.log('🔧 유효성 검사:', {
+                        hasDate,
+                        hasTime,
+                        isValid,
+                        saveButtonDisabled: saveBtn.disabled
+                    });
+                    
+                    return isValid;
+                };
+                
+                // 실시간 유효성 검사
+                dateInput.addEventListener('input', validateInputs);
+                dateInput.addEventListener('change', validateInputs);
+                timeInput.addEventListener('input', validateInputs);
+                timeInput.addEventListener('change', validateInputs);
+                
+                // Enter 키로 저장
+                const handleKeyPress = (e) => {
+                    if (e.key === 'Enter' && validateInputs()) {
+                        this.saveDateTimeEdit();
+                    }
+                };
+                dateInput.addEventListener('keypress', handleKeyPress);
+                timeInput.addEventListener('keypress', handleKeyPress);
+                
+                // 초기 유효성 검사
+                validateInputs();
+                
+                // 날짜 입력 필드에 포커스
+                dateInput.focus();
+                
+                console.log('🔧 모달 이벤트 리스너 설정 완료');
+            } else {
+                console.error('❌ 모달 입력 필드를 찾을 수 없습니다:', {
+                    dateInput: !!dateInput,
+                    timeInput: !!timeInput,
+                    saveBtn: !!saveBtn
+                });
+            }
+        }, 150);
+    }
+
+
+
+    // 날짜/시간 편집 저장
+    saveDateTimeEdit() {
+        // 저장 버튼이 비활성화된 경우 실행 중단
+        const saveBtn = document.getElementById('saveDateTimeBtn');
+        if (saveBtn && saveBtn.disabled) {
+            this.showToast('❌ 날짜와 시간을 모두 입력해주세요. 빈 값은 허용되지 않습니다.', 'error');
+            return;
+        }
+        
+        const index = this.currentEditingIndex;
+        const field = this.currentEditingField;
+        const element = this.currentEditingElement;
+        
+        console.log('🔧 saveDateTimeEdit 호출:', {
+            index,
+            field,
+            element: element ? element.tagName : 'null',
+            currentAnalysisData: !!this.state.currentAnalysisData
+        });
+        
+        if (!this.state.currentAnalysisData || !this.state.currentAnalysisData.schedules) {
+            this.showToast('분석 데이터를 찾을 수 없습니다.', 'error');
+            return;
+        }
+        
+        const schedule = this.state.currentAnalysisData.schedules[index];
+        if (!schedule) {
+            this.showToast('해당 일정을 찾을 수 없습니다.', 'error');
+            return;
+        }
+        
+        const dateInput = document.getElementById('editDate');
+        const timeInput = document.getElementById('editTime');
+        
+        console.log('🔧 입력 필드 확인:', {
+            dateInput: !!dateInput,
+            timeInput: !!timeInput,
+            dateValue: dateInput ? dateInput.value : 'null',
+            timeValue: timeInput ? timeInput.value : 'null'
+        });
+        
+        if (!dateInput || !timeInput) {
+            this.showToast('입력 필드를 찾을 수 없습니다.', 'error');
+            return;
+        }
+
+        const dateValue = dateInput.value.trim();
+        const timeValue = timeInput.value.trim();
+        
+        // 이중 검증: 빈 값 체크 - 빈 값은 허용하지 않음
+        if (!dateValue || !timeValue) {
+            this.showToast('❌ 날짜와 시간을 모두 입력해주세요! 삭제할 수 없습니다.', 'error');
+            // 입력 필드에 포커스를 주어 사용자가 입력하도록 유도
+            if (!dateValue) {
+                dateInput.focus();
+                dateInput.classList.add('invalid');
+            } else if (!timeValue) {
+                timeInput.focus();
+                timeInput.classList.add('invalid');
+            }
+            return;
+        }
+
+        try {
+            // 로컬 시간으로 Date 객체 생성 후 ISO 문자열로 변환
+            const localDateTime = new Date(`${dateValue}T${timeValue}:00`);
+            
+            if (isNaN(localDateTime.getTime())) {
+                throw new Error('유효하지 않은 날짜/시간입니다.');
+            }
+
+            // 미래 날짜 경고 (선택사항)
+            const now = new Date();
+            const isInPast = localDateTime < now;
+            
+            // ISO 문자열로 저장 (UTC 시간으로 변환됨)
+            schedule[field] = localDateTime.toISOString();
+            
+            // 화면에 표시 (로컬 시간으로 포맷)
+            const prefix = field === 'start_datetime' ? '시작: ' : '종료: ';
+            if (element) {
+                element.textContent = prefix + this.formatDateTime(schedule[field]);
+            }
+            
+            console.log('🔧 날짜 저장 완료:', {
+                field,
+                inputDate: dateValue,
+                inputTime: timeValue,
+                localDateTime: localDateTime.toString(),
+                savedValue: schedule[field],
+                displayValue: element ? element.textContent : 'element null',
+                isInPast
+            });
+
+            this.hideModal();
+            
+            let successMessage = '✅ 날짜/시간이 성공적으로 수정되었습니다!';
+            if (isInPast) {
+                successMessage += ' (과거 시간으로 설정됨)';
+            }
+            this.showToast(successMessage, 'success');
+            
+        } catch (error) {
+            console.error('날짜 저장 오류:', error);
+            this.showToast(`❌ 날짜 저장 실패: ${error.message}`, 'error');
+        }
+    }
+
+
 
     editActionField(element, field, index) {
         const action = this.state.currentAnalysisData.actions[index];

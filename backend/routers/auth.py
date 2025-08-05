@@ -10,7 +10,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/auth", tags=["authentication"])
+router = APIRouter(tags=["authentication"])
 auth_service = AuthService()
 
 

@@ -258,13 +258,13 @@ async def dashboard_page():
 # 라우터 추가
 from routers import auth, analysis, schedules, members, email, google_calendar, gmail, schedule_share, notifications
 
-app.include_router(auth.router, prefix="/api", tags=["auth"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(analysis.router, prefix="/api", tags=["analysis"])
-app.include_router(schedules.router, prefix="/api", tags=["schedules"])
-app.include_router(members.router, prefix="/api", tags=["members"])
-app.include_router(email.router, prefix="/api", tags=["email"])
+app.include_router(schedules.router, prefix="/api/schedules", tags=["schedules"])
+app.include_router(members.router, prefix="/api/members", tags=["members"])
+app.include_router(email.router, prefix="/api/email", tags=["email"])
 app.include_router(google_calendar.router, prefix="/api", tags=["google_calendar"])
-app.include_router(gmail.router, tags=["gmail"])
+app.include_router(gmail.router, prefix="/api/gmail", tags=["gmail"])
 app.include_router(schedule_share.router, prefix="/api/schedule-share", tags=["schedule_share"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 

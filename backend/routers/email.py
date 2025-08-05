@@ -9,7 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/email", tags=["email"])
+router = APIRouter(tags=["email"])
 email_service = EmailService()
 
 
