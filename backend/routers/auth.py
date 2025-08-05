@@ -1,7 +1,7 @@
 """
 Authentication routes for MUFI application
 """
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Request
 from typing import Dict, Any, Optional
 from services.auth_service import AuthService
 from services.google_token_service import google_token_service
@@ -15,16 +15,21 @@ auth_service = AuthService()
 
 
 @router.get("/google/login")
-async def google_login():
+async def google_login(request: Request):
     """Get Google OAuth login URL"""
     from config.config import settings
+    
+    # 현재 요청의 호스트를 기반으로 동적으로 리다이렉트 URI 생성
+    host = request.headers.get("host")
+    scheme = "https" if request.headers.get("x-forwarded-proto") == "https" else "http"
+    redirect_uri = f"{scheme}://{host}/auth/google/callback"
     
     google_auth_url = (
         "https://accounts.google.com/o/oauth2/auth"
         f"?client_id={settings.google_client_id}"
         "&response_type=code"
         "&scope=openid email profile"
-        f"&redirect_uri={settings.google_redirect_uri}"
+        f"&redirect_uri={redirect_uri}"
         "&access_type=offline"
     )
     

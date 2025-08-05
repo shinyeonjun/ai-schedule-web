@@ -3854,7 +3854,7 @@ class MUFIDashboardExtension extends MUFIDashboard {
         try {
             console.log('🔄 [DEBUG] 강제 토큰 갱신 요청');
             
-            const response = await this.authenticatedFetch('/api/auth/google/force-refresh', {
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/auth/google/force-refresh`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -4690,7 +4690,7 @@ ${schedule.location ? `- 장소: ${schedule.location}` : ''}
     // 실제 API에서 알림 데이터 가져오기
     async fetchNotifications() {
         try {
-            const response = await this.authenticatedFetch('/api/notifications/');
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/notifications/`);
             if (response.ok) {
                 const data = await response.json();
                 return data.notifications.map(notification => ({
@@ -4826,7 +4826,7 @@ ${schedule.location ? `- 장소: ${schedule.location}` : ''}
         console.log('📖 모든 알림 읽음 처리');
         
         try {
-            const response = await this.authenticatedFetch('/api/notifications/mark-read', {
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/notifications/mark-read`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -4861,7 +4861,7 @@ ${schedule.location ? `- 장소: ${schedule.location}` : ''}
             if (!notification) return;
             
             // 서버에 수락 API 호출
-            const response = await this.authenticatedFetch('/api/schedule-share/respond', {
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedule-share/respond`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -4907,7 +4907,7 @@ ${schedule.location ? `- 장소: ${schedule.location}` : ''}
             if (!notification) return;
             
             // 서버에 거절 API 호출
-            const response = await this.authenticatedFetch('/api/schedule-share/respond', {
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/schedule-share/respond`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -5449,7 +5449,7 @@ ${schedule.location ? `- 장소: ${schedule.location}` : ''}
     // 개별 알림 읽음 처리
     async markNotificationRead(notificationId) {
         try {
-            const response = await this.authenticatedFetch(`/api/notifications/${notificationId}/read`, {
+            const response = await this.authenticatedFetch(`${this.config.apiBaseUrl}/api/notifications/${notificationId}/read`, {
                 method: 'POST'
             });
             

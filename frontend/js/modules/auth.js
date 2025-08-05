@@ -5,7 +5,7 @@
 
 class AuthManager {
     constructor() {
-        this.baseURL = 'http://localhost:8000';
+        this.baseURL = window.location.origin; // 현재 도메인 사용
         this.token = null;
         this.user = null;
         

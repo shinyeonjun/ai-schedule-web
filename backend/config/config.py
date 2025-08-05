@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     # Google OAuth
     google_client_id: str
     google_client_secret: str
-    google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
+    google_redirect_uri: str = ""  # 환경변수에서 설정
     
     # OpenAI
     openai_api_key: str
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     
     # CORS
-    cors_origins: list = ["http://localhost:8000", "http://127.0.0.1:8000"]
+    cors_origins: list = ["*"]  # 모든 도메인 허용 (개발용)
     
     # File Upload
     upload_dir: str = "uploads"
