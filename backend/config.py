@@ -17,6 +17,7 @@ class Settings:
         "http://localhost:8000",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000",
+        "https://mufischedule.pagekite.me"
     ]
     
     # 파일 업로드 설정
