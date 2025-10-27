@@ -1,0 +1,112 @@
+# Python
+*.py[cod]
+*$py.class
+*.so
+.Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.manifest
+*.spec
+
+# 가상환경
+venv/
+ENV/
+env/
+.venv
+env.bak/
+venv.bak/
+
+# 환경 변수 및 비밀 키
+.env
+.env.local
+.env.*.local
+env.txt
+*.key
+*.pem
+credentials.json
+token.json
+client_secret*.json
+google_credentials.json
+*.p12
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# 로그 파일
+*.log
+logs/
+*.log.*
+
+# 데이터베이스
+*.db
+*.sqlite
+*.sqlite3
+db.sqlite3
+
+# 임시 파일
+*.tmp
+*.temp
+*.bak
+*.swp
+*.cache
+.cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# 테스트 관련
+.tox/
+.nox/
+.hypothesis/
+pytest.ini
+
+# 배포 관련
+*.zip
+*.tar.gz
+*.rar
+
+# 기타
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SULLIVAN - 통화 분석 & 일정 관리</title>
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNCIgZmlsbD0iIzI1NjNlYiIvPgo8dGV4dCB4PSIxNiIgeT0iMjAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5NPC90ZXh0Pgo8L3N2Zz4K">
+    <!-- 메인 대시보드 CSS -->
+    <link rel="stylesheet" href="../css/dashboard/dashboard.css">
+    <!-- 섹션별 CSS -->
+    <link rel="stylesheet" href="../css/dashboard/sections/analysis.css">
+    <link rel="stylesheet" href="../css/dashboard/sections/schedules.css">
+    <link rel="stylesheet" href="../css/dashboard/sections/members.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        {{SIDEBAR}}
+        
+        <!-- 메인 콘텐츠 -->
+        <main class="main-content">
+            {{HEADER}}
+            
+            {{CONTENT}}
+        </main>
+    </div>
+
+    {{MODALS}}
+    
+    <!-- JavaScript -->
+    <script src="../js/dashboard/dashboard.js"></script>
+    <script src="../js/dashboard/analysis/analysis.js"></script>
+    <script src="../js/dashboard/schedules/schedules.js"></script>
+    <script src="../js/dashboard/members/members.js"></script>
+</body>
+</html>

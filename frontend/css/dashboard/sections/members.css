@@ -1,0 +1,375 @@
+/* 인원 관리 섹션 스타일 */
+
+/* 섹션 헤더 */
+.section-header {
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.section-description {
+    color: #6b7280;
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* 탭 메뉴 */
+.members-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 0;
+}
+
+.tab-button {
+    background: none;
+    border: none;
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tab-button:hover {
+    color: #2563eb;
+    background-color: #f8fafc;
+}
+
+.tab-button.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+    background-color: #eff6ff;
+}
+
+.tab-button i {
+    font-size: 1.1rem;
+}
+
+/* 탭 콘텐츠 */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* 카드 스타일 */
+.card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+}
+
+/* 컨테이너 */
+.members-container,
+.contacts-container {
+    padding: 1.5rem;
+}
+
+/* 로딩 상태 */
+.loading-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    color: #6b7280;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #e5e7eb;
+    border-top: 4px solid #2563eb;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 그리드 레이아웃 */
+.users-grid,
+.contacts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+/* 사용자 카드 */
+.user-card,
+.contact-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.user-card:hover,
+.contact-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+/* 카드 헤더 */
+.user-header,
+.contact-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.user-avatar,
+.contact-avatar {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.25rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.user-avatar img,
+.contact-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.user-avatar i,
+.contact-avatar i {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+}
+
+.user-info,
+.contact-info {
+    flex: 1;
+}
+
+.user-name,
+.contact-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 0.25rem 0;
+}
+
+.user-email,
+.contact-email {
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+/* 상태 배지 */
+.user-status,
+.contact-status {
+    margin-left: auto;
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.active {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.status-badge.inactive {
+    background-color: #fef2f2;
+    color: #dc2626;
+}
+
+/* 상세 정보 */
+.user-details,
+.contact-details {
+    margin-bottom: 1.5rem;
+}
+
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.detail-item:last-child {
+    border-bottom: none;
+}
+
+.detail-item .label {
+    font-weight: 500;
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.detail-item .value {
+    color: #1f2937;
+    font-size: 0.9rem;
+    text-align: right;
+    max-width: 60%;
+    word-break: break-word;
+}
+
+/* 액션 버튼 */
+.user-actions,
+.contact-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.user-actions .btn,
+.contact-actions .btn {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.user-actions .btn:hover,
+.contact-actions .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* 빈 상태 */
+.placeholder-content {
+    text-align: center;
+    padding: 3rem;
+    color: #6b7280;
+}
+
+.placeholder-icon {
+    font-size: 3rem;
+    color: #d1d5db;
+    margin-bottom: 1rem;
+}
+
+.placeholder-content h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.placeholder-content p {
+    color: #6b7280;
+    margin: 0;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .members-tabs {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .tab-button {
+        border-radius: 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .users-grid,
+    .contacts-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .user-card,
+    .contact-card {
+        padding: 1rem;
+    }
+    
+    .user-header,
+    .contact-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+    }
+    
+    .user-status,
+    .contact-status {
+        margin-left: 0;
+    }
+    
+    .user-actions,
+    .contact-actions {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .section-title {
+        font-size: 1.5rem;
+    }
+    
+    .card-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+    
+    .detail-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .detail-item .value {
+        text-align: left;
+        max-width: 100%;
+    }
+}

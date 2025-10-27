@@ -1,0 +1,694 @@
+/* MUFI Login - Dashboard Design System */
+/* 대시보드와 완전히 동일한 흑백 미니멀 디자인 */
+
+:root {
+  /* 대시보드와 동일한 Color System - Black & White Only */
+  --color-black: #000000;
+  --color-white: #ffffff;
+  --color-gray-100: #f8f9fa;
+  --color-gray-200: #e9ecef;
+  --color-gray-300: #dee2e6;
+  --color-gray-400: #ced4da;
+  --color-gray-500: #adb5bd;
+  --color-gray-600: #6c757d;
+  --color-gray-700: #495057;
+  --color-gray-800: #343a40;
+  --color-gray-900: #212529;
+  
+  /* Typography - 대시보드와 동일 */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* Spacing - 대시보드와 동일 */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  
+  /* Border Radius - 대시보드와 동일 */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  
+  /* Shadows - 대시보드와 동일 */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  
+  /* Transitions - 대시보드와 동일 */
+  --transition-fast: 150ms ease;
+  --transition-normal: 300ms ease;
+}
+
+/* Reset & Base Styles - 대시보드와 동일 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family);
+  font-weight: var(--font-weight-normal);
+  line-height: 1.5;
+  color: var(--color-black);
+  background-color: var(--color-white);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+/* 로그인 컨테이너 */
+.login-container {
+  display: flex;
+  min-height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* 왼쪽 브랜딩 섹션 */
+.login-brand {
+  flex: 1;
+  background: var(--color-gray-100);
+  padding: var(--spacing-2xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--color-gray-200);
+}
+
+.brand-content {
+  max-width: 480px;
+  width: 100%;
+}
+
+/* 브랜드 로고 */
+.brand-logo {
+  text-align: center;
+  margin-bottom: var(--spacing-2xl);
+  padding-bottom: var(--spacing-xl);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.brand-logo h1 {
+  font-size: 2.5rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-black);
+  letter-spacing: -0.025em;
+  margin-bottom: var(--spacing-sm);
+}
+
+.logo-subtitle {
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+  font-weight: var(--font-weight-medium);
+}
+
+/* 기능 소개 */
+.feature-showcase {
+  margin-bottom: var(--spacing-2xl);
+}
+
+.feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-normal);
+}
+
+.feature-item:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-gray-300);
+}
+
+.feature-item:last-child {
+  margin-bottom: 0;
+}
+
+.feature-icon {
+  font-size: 1.5rem;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-gray-100);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.feature-text h3 {
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-black);
+  margin-bottom: var(--spacing-sm);
+}
+
+.feature-text p {
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+  line-height: 1.6;
+}
+
+/* 통계 그리드 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-lg);
+  padding: var(--spacing-xl);
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-black);
+  margin-bottom: var(--spacing-xs);
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--color-gray-600);
+  font-weight: var(--font-weight-medium);
+}
+
+/* 오른쪽 로그인 폼 컨테이너 */
+.login-form-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+  background: var(--color-white);
+}
+
+/* 로그인 카드 - 대시보드 카드 스타일과 동일 */
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+}
+
+.login-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-gray-300);
+}
+
+/* 로그인 헤더 */
+.login-header {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.login-header h2 {
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-black);
+  margin-bottom: var(--spacing-sm);
+}
+
+.login-header p {
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+  line-height: 1.6;
+}
+
+/* 폼 스타일 - 대시보드와 동일 */
+.login-form {
+  margin-bottom: var(--spacing-xl);
+}
+
+.form-group {
+  margin-bottom: var(--spacing-lg);
+}
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-black);
+  margin-bottom: var(--spacing-sm);
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--spacing-md);
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--color-black);
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+.form-input::placeholder {
+  color: var(--color-gray-500);
+}
+
+.form-input:focus {
+  border-color: var(--color-black);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+}
+
+.form-input:invalid:not(:placeholder-shown) {
+  border-color: #dc2626;
+}
+
+/* 비밀번호 필드 */
+.password-field {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  right: var(--spacing-md);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  color: var(--color-gray-600);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.password-toggle:hover {
+  color: var(--color-black);
+  background: var(--color-gray-100);
+}
+
+/* 폼 옵션 */
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+  display: none;
+}
+
+.checkmark {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-sm);
+  position: relative;
+  transition: all var(--transition-fast);
+}
+
+.checkbox-wrapper input[type="checkbox"]:checked + .checkmark {
+  background: var(--color-black);
+  border-color: var(--color-black);
+}
+
+.checkbox-wrapper input[type="checkbox"]:checked + .checkmark::after {
+  content: '✓';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--color-white);
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+}
+
+.forgot-link {
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+  text-decoration: none;
+  font-weight: var(--font-weight-medium);
+  transition: all var(--transition-fast);
+}
+
+.forgot-link:hover {
+  color: var(--color-black);
+  text-decoration: underline;
+}
+
+/* 버튼 스타일 - 대시보드와 완전히 동일 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+.btn-primary {
+  background-color: var(--color-black);
+  color: var(--color-white);
+  border-color: var(--color-black);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-gray-800);
+  border-color: var(--color-gray-800);
+}
+
+.btn-primary:disabled {
+  background-color: var(--color-gray-400);
+  border-color: var(--color-gray-400);
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--color-black);
+  border-color: var(--color-gray-300);
+}
+
+.btn-outline:hover {
+  background-color: var(--color-black);
+  color: var(--color-white);
+  border-color: var(--color-black);
+}
+
+.login-btn {
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-lg);
+}
+
+/* 구분선 */
+.divider {
+  position: relative;
+  text-align: center;
+  margin: var(--spacing-xl) 0;
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--color-gray-200);
+}
+
+.divider span {
+  background: var(--color-white);
+  padding: 0 var(--spacing-md);
+  font-size: 0.875rem;
+  color: var(--color-gray-500);
+  position: relative;
+}
+
+/* 소셜 로그인 */
+.social-login {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+}
+
+.social-btn {
+  width: 100%;
+}
+
+/* 회원가입 섹션 */
+.signup-section {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-gray-200);
+}
+
+.signup-section p {
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+}
+
+.signup-link {
+  color: var(--color-black);
+  text-decoration: none;
+  font-weight: var(--font-weight-semibold);
+  transition: all var(--transition-fast);
+}
+
+.signup-link:hover {
+  text-decoration: underline;
+}
+
+/* 데모 정보 */
+.demo-info {
+  background: var(--color-gray-100);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  text-align: center;
+}
+
+.demo-badge {
+  display: inline-block;
+  background: var(--color-black);
+  color: var(--color-white);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.demo-info p {
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+/* 에러 메시지 */
+.form-error {
+  font-size: 0.75rem;
+  color: #dc2626;
+  margin-top: var(--spacing-xs);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: all var(--transition-fast);
+}
+
+.form-error.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 알림 컨테이너 */
+.notification-container {
+  position: fixed;
+  top: var(--spacing-lg);
+  right: var(--spacing-lg);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.notification {
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  box-shadow: var(--shadow-lg);
+  min-width: 300px;
+  transform: translateX(100%);
+  opacity: 0;
+  transition: all var(--transition-normal);
+}
+
+.notification.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.notification.success {
+  border-left: 4px solid #16a34a;
+}
+
+.notification.error {
+  border-left: 4px solid #dc2626;
+}
+
+.notification.info {
+  border-left: 4px solid var(--color-black);
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .login-container {
+    flex-direction: column;
+  }
+  
+  .login-brand {
+    flex: none;
+    padding: var(--spacing-xl);
+    border-right: none;
+    border-bottom: 1px solid var(--color-gray-200);
+  }
+  
+  .brand-logo {
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-lg);
+  }
+  
+  .brand-logo h1 {
+    font-size: 2rem;
+  }
+  
+  .feature-showcase {
+    display: none;
+  }
+  
+  .stats-grid {
+    display: none;
+  }
+  
+  .login-form-container {
+    padding: var(--spacing-xl);
+  }
+  
+  .form-options {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+  
+  .notification-container {
+    left: var(--spacing-md);
+    right: var(--spacing-md);
+    top: var(--spacing-md);
+  }
+  
+  .notification {
+    min-width: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-brand,
+  .login-form-container {
+    padding: var(--spacing-lg);
+  }
+  
+  .brand-logo h1 {
+    font-size: 1.75rem;
+  }
+  
+  .login-card {
+    padding: var(--spacing-lg);
+  }
+  
+  .login-header h2 {
+    font-size: 1.25rem;
+  }
+  
+  .social-login {
+    gap: var(--spacing-sm);
+  }
+}
+
+/* 접근성 개선 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 포커스 스타일 개선 */
+*:focus-visible {
+  outline: 2px solid var(--color-black);
+  outline-offset: 2px;
+}
+
+/* Google 로그인 전용 스타일 */
+.google-login-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-2xl) 0;
+}
+
+.google-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  max-width: 320px;
+  padding: var(--spacing-lg);
+  font-size: 16px;
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.google-login-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+.google-login-btn:active {
+  transform: translateY(0);
+}
+
+.google-icon {
+  flex-shrink: 0;
+}
+
+.login-description {
+  text-align: center;
+  color: var(--color-gray-600);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+} 
