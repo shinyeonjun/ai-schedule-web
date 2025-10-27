@@ -18,6 +18,7 @@ function buildDashboard() {
         const analysis = fs.readFileSync('dashboard/sections/analysis.html', 'utf8');
         const schedules = fs.readFileSync('dashboard/sections/schedules.html', 'utf8');
         const members = fs.readFileSync('dashboard/sections/members.html', 'utf8');
+        const group = fs.readFileSync('dashboard/sections/group.html', 'utf8');
         console.log('✅ 섹션 로드 완료');
         
         // 4. 모달 로드
@@ -27,7 +28,7 @@ function buildDashboard() {
         // 5. 템플릿 치환
         mainTemplate = mainTemplate.replace('{{SIDEBAR}}', sidebar);
         mainTemplate = mainTemplate.replace('{{HEADER}}', header);
-        mainTemplate = mainTemplate.replace('{{CONTENT}}', analysis + schedules + members);
+        mainTemplate = mainTemplate.replace('{{CONTENT}}', analysis + schedules + members + group);
         mainTemplate = mainTemplate.replace('{{MODALS}}', modals);
         console.log('✅ 템플릿 치환 완료');
         

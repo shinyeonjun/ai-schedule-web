@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="../css/dashboard/sections/analysis.css">
     <link rel="stylesheet" href="../css/dashboard/sections/schedules.css">
     <link rel="stylesheet" href="../css/dashboard/sections/members.css">
+    <link rel="stylesheet" href="../css/dashboard/sections/group.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -36,6 +37,11 @@
             <li class="nav-item">
                 <a href="#" class="nav-link" data-section="members">
                     인원 관리
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link" data-section="group">
+                    그룹 관리
                 </a>
             </li>
         </ul>
@@ -267,6 +273,40 @@
         </div>
     </div>
 </section>
+<!-- 그룹 관리 섹션 -->
+<section id="group-section" class="content-section">
+    <div class="group-section">
+        <!-- 헤더 -->
+        <div class="group-header">
+            <div class="group-header-left">
+                <h1 class="group-title">그룹 관리</h1>
+                <p class="group-subtitle">팀과 함께 일정을 공유하고 협업하세요</p>
+            </div>
+            <div class="group-header-actions">
+                <button class="btn btn-primary" onclick="window.groupSection.showCreateGroupModal()">
+                    <i class="fas fa-plus"></i> 그룹 생성
+                </button>
+                <button class="btn btn-secondary" onclick="window.groupSection.loadMyGroups()">
+                    <i class="fas fa-sync-alt"></i> 새로고침
+                </button>
+            </div>
+        </div>
+
+        <!-- 내 그룹 -->
+        <div class="groups-container" id="groupsContainer">
+            <!-- 그룹 카드들이 여기에 동적으로 추가됩니다 -->
+            <div class="empty-state">
+                <i class="fas fa-users fa-3x"></i>
+                <h3>아직 그룹이 없습니다</h3>
+                <p>새 그룹을 만들거나 초대 링크를 통해 가입하세요</p>
+                <button class="btn btn-primary" onclick="window.groupSection.showCreateGroupModal()">
+                    <i class="fas fa-plus"></i> 첫 그룹 만들기
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
 
         </main>
     </div>
@@ -471,5 +511,6 @@
     <script src="../js/dashboard/analysis/analysis.js"></script>
     <script src="../js/dashboard/schedules/schedules.js"></script>
     <script src="../js/dashboard/members/members.js"></script>
+    <script src="../js/dashboard/group/groups.js"></script>
 </body>
 </html>

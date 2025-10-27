@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>그룹 초대 - SULLIVAN</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .invite-container {
+            background: #ffffff;
+            border: 2px solid #1e293b;
+            border-radius: 16px;
+            padding: 3rem;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .invite-icon {
+            width: 80px;
+            height: 80px;
+            background: #ffffff;
+            border: 2px solid #1e293b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            font-size: 2rem;
+            color: #1e293b;
+        }
+
+        .invite-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .invite-subtitle {
+            font-size: 1rem;
+            color: #64748b;
+            margin-bottom: 2rem;
+        }
+
+        .group-info {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+
+        .group-info-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .group-info-item:last-child {
+            border-bottom: none;
+        }
+
+        .group-info-item i {
+            color: #1e293b;
+            width: 20px;
+            text-align: center;
+        }
+
+        .group-info-label {
+            font-size: 0.9rem;
+            color: #64748b;
+            min-width: 80px;
+        }
+
+        .group-info-value {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #1e293b;
+            flex: 1;
+        }
+
+        .invite-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 0.875rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            border: 2px solid #1e293b;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: #1e293b;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background: #0f172a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30, 41, 59, 0.3);
+        }
+
+        .btn-secondary {
+            background: #ffffff;
+            color: #1e293b;
+        }
+
+        .btn-secondary:hover {
+            background: #f8fafc;
+        }
+
+        .invite-message {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            color: #475569;
+            font-style: italic;
+        }
+
+        .error-container {
+            text-align: center;
+        }
+
+        .error-icon {
+            font-size: 3rem;
+            color: #94a3b8;
+            margin-bottom: 1rem;
+        }
+
+        .error-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .error-message {
+            font-size: 0.95rem;
+            color: #64748b;
+            margin-bottom: 2rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #1e293b;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .expire-info {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .expire-info i {
+            color: #1e293b;
+        }
+
+        @media (max-width: 640px) {
+            .invite-container {
+                padding: 2rem;
+            }
+
+            .invite-title {
+                font-size: 1.5rem;
+            }
+
+            .invite-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="invite-container" id="inviteContainer">
+        <!-- 로딩 중 -->
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>초대 정보를 불러오는 중...</p>
+        </div>
+
+        <!-- 초대 정보 (JavaScript로 동적 생성) -->
+        <div id="inviteContent" style="display: none;"></div>
+
+        <!-- 에러 메시지 (JavaScript로 동적 생성) -->
+        <div id="errorContent" style="display: none;"></div>
+    </div>
+
+    <script>
+        // URL에서 토큰 추출
+        const pathParts = window.location.pathname.split('/');
+        const token = pathParts[pathParts.length - 1];
+
+        console.log('🔗 초대 토큰:', token);
+
+        // 초대 정보 로드
+        async function loadInviteInfo() {
+            try {
+                // TODO: API 연동
+                // const response = await fetch(`/api/invites/${token}/preview`);
+                // const data = await response.json();
+
+                // 임시 데모 데이터
+                await new Promise(resolve => setTimeout(resolve, 800));
+
+                const demoData = {
+                    success: true,
+                    data: {
+                        group_name: '마케팅팀',
+                        description: '마케팅 전략 및 캠페인 기획 그룹입니다',
+                        member_count: 12,
+                        inviter_name: '김철수',
+                        inviter_email: 'kim@company.com',
+                        message: '우리 팀에 합류해주세요! 함께 멋진 프로젝트를 만들어가요.',
+                        expired_at: '2025-02-03T10:00:00',
+                        is_expired: false
+                    }
+                };
+
+                if (demoData.success && !demoData.data.is_expired) {
+                    showInviteContent(demoData.data);
+                } else if (demoData.data.is_expired) {
+                    showError('만료된 초대입니다', '이 초대 링크는 만료되었습니다. 새로운 초대 링크를 요청해주세요.');
+                } else {
+                    showError('유효하지 않은 초대입니다', '이 초대 링크를 찾을 수 없거나 이미 사용되었습니다.');
+                }
+
+            } catch (error) {
+                console.error('❌ 초대 정보 로드 실패:', error);
+                showError('오류가 발생했습니다', '초대 정보를 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.');
+            }
+        }
+
+        // 초대 정보 표시
+        function showInviteContent(invite) {
+            const expiredDate = new Date(invite.expired_at).toLocaleDateString('ko-KR');
+            const daysLeft = Math.ceil((new Date(invite.expired_at) - new Date()) / (1000 * 60 * 60 * 24));
+
+            const content = `
+                <div class="invite-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+
+                <h1 class="invite-title">${invite.group_name}</h1>
+                <p class="invite-subtitle">${invite.inviter_name}님이 초대했습니다</p>
+
+                ${invite.message ? `
+                    <div class="invite-message">
+                        <i class="fas fa-comment-dots"></i> "${invite.message}"
+                    </div>
+                ` : ''}
+
+                <div class="group-info">
+                    ${invite.description ? `
+                        <div class="group-info-item">
+                            <i class="fas fa-info-circle"></i>
+                            <span class="group-info-label">설명</span>
+                            <span class="group-info-value">${invite.description}</span>
+                        </div>
+                    ` : ''}
+                    <div class="group-info-item">
+                        <i class="fas fa-user"></i>
+                        <span class="group-info-label">초대자</span>
+                        <span class="group-info-value">${invite.inviter_name}</span>
+                    </div>
+                    <div class="group-info-item">
+                        <i class="fas fa-users"></i>
+                        <span class="group-info-label">멤버</span>
+                        <span class="group-info-value">${invite.member_count}명</span>
+                    </div>
+                </div>
+
+                <div class="invite-actions">
+                    <button class="btn btn-secondary" onclick="handleCancel()">
+                        <i class="fas fa-times"></i> 취소
+                    </button>
+                    <button class="btn btn-primary" onclick="handleAccept()">
+                        <i class="fas fa-check"></i> 가입하기
+                    </button>
+                </div>
+
+                <div class="expire-info">
+                    <i class="fas fa-clock"></i>
+                    <span>${expiredDate}까지 유효 (${daysLeft}일 남음)</span>
+                </div>
+            `;
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('inviteContent').innerHTML = content;
+            document.getElementById('inviteContent').style.display = 'block';
+        }
+
+        // 에러 표시
+        function showError(title, message) {
+            const content = `
+                <div class="error-container">
+                    <div class="error-icon">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <h2 class="error-title">${title}</h2>
+                    <p class="error-message">${message}</p>
+                    <button class="btn btn-primary" onclick="window.location.href='/login'">
+                        <i class="fas fa-home"></i> 메인으로 이동
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('errorContent').innerHTML = content;
+            document.getElementById('errorContent').style.display = 'block';
+        }
+
+        // 가입 처리
+        async function handleAccept() {
+            try {
+                const token = localStorage.getItem('mufi_token');
+
+                // 로그인 확인
+                if (!token) {
+                    // 로그인 페이지로 리다이렉트 (토큰 포함)
+                    window.location.href = `/login?invite_token=${token}`;
+                    return;
+                }
+
+                console.log('✅ 그룹 가입 처리 중...');
+
+                // TODO: API 연동
+                // const response = await fetch(`/api/invites/${token}/accept`, {
+                //     method: 'POST',
+                //     headers: { 'Authorization': `Bearer ${token}` }
+                // });
+
+                // 임시: 대시보드로 이동
+                alert('그룹에 가입되었습니다!');
+                window.location.href = '/dashboard';
+
+            } catch (error) {
+                console.error('❌ 가입 처리 실패:', error);
+                alert('가입 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+            }
+        }
+
+        // 취소 처리
+        function handleCancel() {
+            if (confirm('초대를 거절하시겠습니까?')) {
+                window.location.href = '/login';
+            }
+        }
+
+        // 페이지 로드 시 초대 정보 로드
+        loadInviteInfo();
+    </script>
+</body>
+</html>
+

@@ -49,6 +49,7 @@ google_credentials.json
 *.p12
 
 # IDEs
+.kiro/
 .vscode/
 .idea/
 *.swp

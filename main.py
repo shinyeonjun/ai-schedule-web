@@ -68,6 +68,11 @@ async def dashboard_page():
     """대시보드 페이지"""
     return FileResponse("frontend/html/dashboard.html")
 
+@app.get("/invite/{token}", response_class=HTMLResponse)
+async def invite_preview_page(token: str):
+    """초대 링크 미리보기 페이지"""
+    return FileResponse("frontend/html/invite-preview.html")
+
 @app.get("/health")
 async def health_check():
     """헬스 체크 엔드포인트"""
