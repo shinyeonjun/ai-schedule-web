@@ -1,0 +1,32 @@
+/* 분석 결과 영역 */
+.analysis-results { margin-top: 24px; padding: 20px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e5e7eb; display: none; }
+.analysis-results.show { display: block; animation: slideIn 0.3s ease; }
+
+.results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.results-title { font-weight: 600; color: #1f2937; font-size: 18px; }
+.results-subtitle { color: #6b7280; font-size: 14px; }
+
+/* 결과 헤더 스타일 */
+.results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 12px; border: 1px solid #e2e8f0; }
+.results-title { font-size: 24px; font-weight: 700; color: #1f2937; margin: 0 0 4px 0; }
+.results-subtitle { color: #6b7280; margin: 0; font-size: 14px; }
+.results-actions { display: flex; gap: 12px; }
+.results-actions .btn { padding: 8px 16px; border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px; border: none; cursor: pointer; }
+.results-actions .btn-secondary { background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%); color: white; box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3); }
+.results-actions .btn-secondary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4); }
+.results-actions .btn-primary { background: linear-gradient(135deg, #1f2937 0%, #374151 100%); color: white; box-shadow: 0 2px 8px rgba(31, 41, 55, 0.3); }
+.results-actions .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(31, 41, 55, 0.4); }
+
+.results-section { margin-bottom: 30px; }
+.results-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.results-section-title { font-size: 18px; font-weight: 600; color: #1f2937; margin: 0; display: flex; align-items: center; gap: 8px; }
+.results-section-title i { color: #1f2937; }
+.results-cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); }
+
+.results-count { color: #6b7280; font-size: 14px; }
+
+.empty-results { text-align: center; padding: 40px 20px; color: #6b7280; }
+.empty-results i { font-size: 48px; color: #d1d5db; margin-bottom: 16px; }
+.empty-results h3 { font-size: 18px; font-weight: 500; margin-bottom: 8px; color: #374151; }
+.empty-results p { font-size: 14px; color: #9ca3af; }
+

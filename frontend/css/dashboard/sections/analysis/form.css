@@ -1,0 +1,42 @@
+/* 텍스트 입력 영역 */
+.text-input-area { margin: 0 20px 20px 20px; }
+.form-group { margin: 20px 20px 20px 20px; }
+.form-label { display: block; font-weight: 500; color: #374151; margin-bottom: 8px; }
+.form-control { width: 100%; min-height: 120px; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; font-family: inherit; font-size: 14px; line-height: 1.5; resize: vertical; transition: border-color 0.2s ease; }
+.form-control:focus { outline: none; border-color: #1f2937; box-shadow: 0 0 0 3px rgba(31, 41, 55, 0.1); }
+
+/* 분석 버튼 */
+.btn-analyze { background-color: #1f2937; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px; }
+.btn-analyze:hover { background-color: #111827; }
+.btn-analyze:disabled { background-color: #9ca3af; cursor: not-allowed; }
+.btn-analyze i { font-size: 14px; }
+
+/* 폼 유틸 */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.form-row.full-width { grid-template-columns: 1fr; }
+.form-group { display: flex; flex-direction: column; }
+.form-label { font-size: 12px; font-weight: 500; color: #374151; margin-bottom: 4px; }
+.form-input { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; transition: border-color 0.2s ease; }
+.form-input:focus { outline: none; border-color: #1f2937; box-shadow: 0 0 0 2px rgba(31, 41, 55, 0.1); }
+.form-textarea { min-height: 80px; resize: vertical; }
+.form-actions { display: flex; gap: 8px; margin-top: 12px; }
+.btn-save { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; }
+.btn-save:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(5, 150, 105, 0.3); }
+.btn-cancel { background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; }
+.btn-cancel:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(107, 114, 128, 0.3); }
+
+/* 날짜/시간 숫자 입력 필드 스타일 */
+.datetime-inputs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.datetime-inputs input[type="number"] { width: 50px; padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; text-align: center; }
+.datetime-inputs input[type="number"]:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1); }
+.datetime-inputs span { font-size: 12px; color: #6b7280; font-weight: 500; }
+
+/* datetime-local 입력 필드 스타일 */
+input[type="datetime-local"] { pointer-events: auto !important; cursor: text; }
+input[type="datetime-local"]::-webkit-calendar-picker-indicator { cursor: pointer; pointer-events: auto; }
+input[type="datetime-local"]::-webkit-inner-spin-button,
+input[type="datetime-local"]::-webkit-outer-spin-button { pointer-events: auto; }
+
+/* 참여자 입력 필드 스타일 */
+input[data-field="participants"] { pointer-events: auto !important; }
+

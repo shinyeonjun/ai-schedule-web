@@ -17,6 +17,9 @@ from backend.dashboard.schedules.schedules_api import router as schedules_router
 # 인원 관리 API import
 from backend.dashboard.members.members_api import router as members_router
 
+# 그룹 관리 API import
+from backend.dashboard.group.group_api import router as group_router
+
 # FastAPI 앱 생성
 app = FastAPI(
     title="MUFI - AI 통화 분석 시스템",
@@ -48,6 +51,9 @@ app.include_router(schedules_router)
 
 # 인원 관리 API 라우터 추가
 app.include_router(members_router)
+
+# 그룹 관리 API 라우터 추가
+app.include_router(group_router)
 
 # 환경 변수 로드
 from dotenv import load_dotenv

@@ -497,7 +497,7 @@ async def send_email(
         
         # 이메일 데이터 추출
         to_email = email_data.get('to_email')
-        subject = email_data.get('subject', 'MUFI 일정 안내')
+        subject = email_data.get('subject', 'SULLIVAN 일정 안내')
         body = email_data.get('body', '')
         
         if not to_email or not body:

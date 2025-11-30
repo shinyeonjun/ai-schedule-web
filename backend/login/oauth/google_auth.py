@@ -11,12 +11,26 @@ from backend.login.user_database import user_db
 from backend.dashboard.auth.google_token_service import GoogleTokenService
 
 # 환경 변수 로드
+from dotenv import load_dotenv
+from pathlib import Path
+
+# .env 파일 경로 설정
+env_path = Path(__file__).parent.parent.parent / ".env"
+if not env_path.exists():
+    env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(env_path)
+
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_BASE_URL = os.getenv("GOOGLE_REDIRECT_BASE_URL")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+
+# 디버깅: 환경 변수 확인
+if not GOOGLE_CLIENT_ID or GOOGLE_CLIENT_ID == "your_google_client_id_here.apps.googleusercontent.com":
+    print(f"⚠️ 경고: GOOGLE_CLIENT_ID가 설정되지 않았거나 플레이스홀더 값입니다.")
+    print(f"현재 값: {GOOGLE_CLIENT_ID}")
 
 class GoogleOAuth:
     def __init__(self):

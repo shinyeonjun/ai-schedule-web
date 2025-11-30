@@ -270,6 +270,12 @@ class MembersSection {
                     </div>
                     
                     <div class="contact-details">
+                        ${contact.relationship ? `
+                            <div class="detail-item">
+                                <span class="label">관계:</span>
+                                <span class="value">${contact.relationship}</span>
+                            </div>
+                        ` : ''}
                         <div class="detail-item">
                             <span class="label">등록일:</span>
                             <span class="value">${formattedDate}</span>
@@ -396,7 +402,144 @@ class MembersSection {
 
     // 외부 인원 추가 모달 표시
     showAddContactModal() {
-        this.showNotification('외부 인원 추가 기능은 준비 중입니다.', 'info');
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.setAttribute('data-modal-type', 'add-contact');
+
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h2 class="modal-title">외부 인원 추가</h2>
+                    <p class="modal-subtitle">새로운 외부 인원 정보를 입력하세요</p>
+                </div>
+
+                <div class="modal-body">
+                    <form id="addContactForm">
+                        <div class="form-group">
+                            <label for="contactName">이름 <span style="color: #ef4444;">*</span></label>
+                            <input type="text" id="contactName" name="name" required 
+                                   placeholder="이름을 입력하세요" 
+                                   style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem;">
+                        </div>
+
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label for="contactEmail">이메일 <span style="color: #ef4444;">*</span></label>
+                            <input type="email" id="contactEmail" name="email" required 
+                                   placeholder="이메일을 입력하세요" 
+                                   style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem;">
+                        </div>
+
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label for="contactRelationship">관계</label>
+                            <input type="text" id="contactRelationship" name="relationship" 
+                                   placeholder="예: 친구, 부장, 동료 등 (선택사항)" 
+                                   style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem;">
+                        </div>
+                    </form>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" data-action="close-add-contact-modal">
+                        취소
+                    </button>
+                    <button class="btn btn-primary" data-action="submit-add-contact">
+                        <i class="fas fa-plus"></i> 추가하기
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // 모달 닫기 이벤트 리스너
+        modal.querySelector('[data-action="close-add-contact-modal"]').addEventListener('click', () => modal.remove());
+        modal.querySelector('[data-action="submit-add-contact"]').addEventListener('click', () => this.submitAddContact(modal));
+        
+        // 모달 외부 클릭 시 닫기
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+        
+        // ESC 키로 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.body.contains(modal)) modal.remove();
+        }, { once: true });
+
+        // 첫 번째 입력 필드에 포커스
+        setTimeout(() => {
+            const firstInput = modal.querySelector('#contactName');
+            if (firstInput) firstInput.focus();
+        }, 100);
+    }
+
+    // 외부 인원 추가 제출
+    async submitAddContact(modal) {
+        const form = modal.querySelector('#addContactForm');
+        if (!form) return;
+
+        const formData = new FormData(form);
+        const contactData = {
+            name: formData.get('name')?.trim() || '',
+            email: formData.get('email')?.trim() || '',
+            relationship: formData.get('relationship')?.trim() || null
+        };
+
+        // 필수 필드 검증
+        if (!contactData.name) {
+            this.showNotification('이름을 입력해주세요.', 'error');
+            return;
+        }
+
+        if (!contactData.email) {
+            this.showNotification('이메일을 입력해주세요.', 'error');
+            return;
+        }
+
+        // 이메일 형식 검증
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(contactData.email)) {
+            this.showNotification('올바른 이메일 형식을 입력해주세요.', 'error');
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('mufi_token');
+            if (!token) {
+                this.showNotification('로그인이 필요합니다.', 'error');
+                return;
+            }
+
+            // 빈 값 제거
+            Object.keys(contactData).forEach(key => {
+                if (contactData[key] === '' || contactData[key] === null) {
+                    delete contactData[key];
+                }
+            });
+
+            const response = await fetch('/api/members/external-contacts', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(contactData)
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                this.showNotification(result.message || '외부 인원이 성공적으로 추가되었습니다.', 'success');
+                modal.remove();
+                // 외부 인원 목록 새로고침
+                this.loadExternalContacts();
+            } else {
+                throw new Error(result.detail || '외부 인원 추가에 실패했습니다.');
+            }
+
+        } catch (error) {
+            console.error('❌ 외부 인원 추가 오류:', error);
+            this.showNotification(error.message || '외부 인원 추가 중 오류가 발생했습니다.', 'error');
+        }
     }
 
     // 알림 표시

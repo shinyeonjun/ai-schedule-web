@@ -1,0 +1,61 @@
+/* ============================================
+   알림 스타일
+   ============================================ */
+.notification {
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    z-index: 1001;
+    animation: slideInRight 0.3s ease;
+    border-left: 4px solid;
+}
+
+.notification-success {
+    border-left-color: #059669;
+}
+
+.notification-error {
+    border-left-color: #dc2626;
+}
+
+.notification-info {
+    border-left-color: #3b82f6;
+}
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.notification-content i {
+    font-size: 1.25rem;
+}
+
+.notification-success .notification-content i {
+    color: #059669;
+}
+
+.notification-error .notification-content i {
+    color: #dc2626;
+}
+
+.notification-info .notification-content i {
+    color: #3b82f6;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+

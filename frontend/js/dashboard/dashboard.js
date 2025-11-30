@@ -148,6 +148,31 @@ const dashboard = {
             targetSection.classList.add('active');
             targetSection.style.display = 'block';
             console.log(`✅ 섹션 활성화: ${sectionName}-section`);
+            
+            // 그룹 섹션이 활성화되면 데이터 로드 (중복 방지)
+            if (sectionName === 'group' && window.groupSection) {
+                console.log('🔄 그룹 섹션 활성화 - 데이터 로드');
+                // 이미 로드 중이거나 최근에 로드했다면 스킵
+                if (window.groupSection.isLoading) {
+                    console.log('⚠️ 그룹 데이터 로드 중이므로 스킵');
+                    return;
+                }
+                
+                setTimeout(() => {
+                    if (window.groupSection) {
+                        // 초기화가 안 되어 있으면 먼저 초기화
+                        if (!window.groupSection.initialized) {
+                            window.groupSection.init();
+                        }
+                        // 데이터 로드
+                        if (typeof window.groupSection.loadData === 'function') {
+                            window.groupSection.loadData();
+                        } else if (typeof window.groupSection.loadMyGroups === 'function') {
+                            window.groupSection.loadMyGroups();
+                        }
+                    }
+                }, 100);
+            }
         } else {
             console.log(`❌ 섹션을 찾을 수 없음: ${sectionName}-section`);
         }

@@ -125,7 +125,7 @@ class GPTService:
 - 날짜: 상대 표현은 현재 시간 기준 계산
 - 시간: 최대한 텍스트 내에서 분석 후 추출 후 적용
 - 한국어 응답 필수
-- 실제 중요 업무에 관련된 개인 일정을 잘 판단해주세요
+- 대화의 흐름을 잘 파악하여 중요한 일정을 위주로 분석해주세요*중요!*
 """
     
     def _validate_and_format_result(self, result: Dict[str, Any]) -> Dict[str, Any]:

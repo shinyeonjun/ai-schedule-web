@@ -24,7 +24,7 @@
 
         .invite-container {
             background: #ffffff;
-            border: 2px solid #1e293b;
+            border: 1px solid #1e293b;
             border-radius: 16px;
             padding: 3rem;
             max-width: 500px;
@@ -36,7 +36,7 @@
             width: 80px;
             height: 80px;
             background: #ffffff;
-            border: 2px solid #1e293b;
+            border: 1px solid #1e293b;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -111,7 +111,7 @@
             border-radius: 8px;
             font-weight: 600;
             font-size: 0.95rem;
-            border: 2px solid #1e293b;
+            border: 1px solid #1e293b;
             cursor: pointer;
             transition: all 0.2s;
             display: inline-flex;
@@ -247,33 +247,18 @@
         // 초대 정보 로드
         async function loadInviteInfo() {
             try {
-                // TODO: API 연동
-                // const response = await fetch(`/api/invites/${token}/preview`);
-                // const data = await response.json();
+                const response = await fetch(`/api/groups/invite/${token}/preview`);
+                const data = await response.json();
 
-                // 임시 데모 데이터
-                await new Promise(resolve => setTimeout(resolve, 800));
-
-                const demoData = {
-                    success: true,
-                    data: {
-                        group_name: '마케팅팀',
-                        description: '마케팅 전략 및 캠페인 기획 그룹입니다',
-                        member_count: 12,
-                        inviter_name: '김철수',
-                        inviter_email: 'kim@company.com',
-                        message: '우리 팀에 합류해주세요! 함께 멋진 프로젝트를 만들어가요.',
-                        expired_at: '2025-02-03T10:00:00',
-                        is_expired: false
-                    }
-                };
-
-                if (demoData.success && !demoData.data.is_expired) {
-                    showInviteContent(demoData.data);
-                } else if (demoData.data.is_expired) {
-                    showError('만료된 초대입니다', '이 초대 링크는 만료되었습니다. 새로운 초대 링크를 요청해주세요.');
+                if (response.ok && data.success) {
+                    showInviteContent(data.data);
                 } else {
-                    showError('유효하지 않은 초대입니다', '이 초대 링크를 찾을 수 없거나 이미 사용되었습니다.');
+                    const errorMessage = data.detail || '이 초대 링크를 찾을 수 없거나 이미 사용되었습니다.';
+                    if (response.status === 410) {
+                        showError('만료된 초대입니다', errorMessage);
+                    } else {
+                        showError('유효하지 않은 초대입니다', errorMessage);
+                    }
                 }
 
             } catch (error) {
@@ -283,62 +268,96 @@
         }
 
         // 초대 정보 표시
-        function showInviteContent(invite) {
-            const expiredDate = new Date(invite.expired_at).toLocaleDateString('ko-KR');
-            const daysLeft = Math.ceil((new Date(invite.expired_at) - new Date()) / (1000 * 60 * 60 * 24));
+        function showInviteContent(data) {
+            const group = data.group;
+            const members = data.members || [];
+            const invite = data.invite;
+            
+            const expiredDate = invite.expired_at ? new Date(invite.expired_at).toLocaleDateString('ko-KR') : null;
+            const daysLeft = invite.expired_at ? Math.ceil((new Date(invite.expired_at) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+
+            // 멤버 목록 HTML 생성
+            let membersHtml = '';
+            if (members.length > 0) {
+                membersHtml = `
+                    <div class="group-info-item" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; width: 100%;">
+                            <i class="fas fa-users"></i>
+                            <span class="group-info-label">멤버</span>
+                            <span class="group-info-value">${members.length}명</span>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; width: 100%;">
+                            ${members.slice(0, 10).map(member => `
+                                <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                    ${member.picture ? `
+                                        <img src="${member.picture}" alt="${member.name}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                                    ` : `
+                                        <div style="width: 32px; height: 32px; border-radius: 50%; background: #1e293b; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600;">
+                                            ${member.name ? member.name.charAt(0) : '?'}
+                                        </div>
+                                    `}
+                                    <span style="font-size: 0.85rem; color: #1e293b; font-weight: 500;">${member.name || member.email}</span>
+                                </div>
+                            `).join('')}
+                            ${members.length > 10 ? `<div style="padding: 0.5rem; color: #64748b; font-size: 0.85rem;">외 ${members.length - 10}명</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
 
             const content = `
                 <div class="invite-icon">
                     <i class="fas fa-users"></i>
                 </div>
 
-                <h1 class="invite-title">${invite.group_name}</h1>
-                <p class="invite-subtitle">${invite.inviter_name}님이 초대했습니다</p>
-
-                ${invite.message ? `
-                    <div class="invite-message">
-                        <i class="fas fa-comment-dots"></i> "${invite.message}"
-                    </div>
-                ` : ''}
+                <h1 class="invite-title">${group.group_name}</h1>
+                <p class="invite-subtitle">${group.admin ? group.admin.name + '님이 초대했습니다' : '그룹에 초대되었습니다'}</p>
 
                 <div class="group-info">
-                    ${invite.description ? `
+                    ${group.description ? `
                         <div class="group-info-item">
                             <i class="fas fa-info-circle"></i>
                             <span class="group-info-label">설명</span>
-                            <span class="group-info-value">${invite.description}</span>
+                            <span class="group-info-value">${group.description}</span>
                         </div>
                     ` : ''}
-                    <div class="group-info-item">
-                        <i class="fas fa-user"></i>
-                        <span class="group-info-label">초대자</span>
-                        <span class="group-info-value">${invite.inviter_name}</span>
-                    </div>
-                    <div class="group-info-item">
-                        <i class="fas fa-users"></i>
-                        <span class="group-info-label">멤버</span>
-                        <span class="group-info-value">${invite.member_count}명</span>
-                    </div>
+                    ${group.admin ? `
+                        <div class="group-info-item">
+                            <i class="fas fa-user"></i>
+                            <span class="group-info-label">그룹 소유자</span>
+                            <span class="group-info-value">${group.admin.name || group.admin.email}</span>
+                        </div>
+                    ` : ''}
+                    ${membersHtml}
                 </div>
 
                 <div class="invite-actions">
                     <button class="btn btn-secondary" onclick="handleCancel()">
                         <i class="fas fa-times"></i> 취소
                     </button>
-                    <button class="btn btn-primary" onclick="handleAccept()">
-                        <i class="fas fa-check"></i> 가입하기
+                    <button class="btn btn-primary" id="acceptBtn" onclick="handleAccept()">
+                        <i class="fas fa-check"></i> 참가하기
                     </button>
                 </div>
 
-                <div class="expire-info">
-                    <i class="fas fa-clock"></i>
-                    <span>${expiredDate}까지 유효 (${daysLeft}일 남음)</span>
-                </div>
+                ${expiredDate ? `
+                    <div class="expire-info">
+                        <i class="fas fa-clock"></i>
+                        <span>${expiredDate}까지 유효${daysLeft ? ` (${daysLeft}일 남음)` : ''}</span>
+                    </div>
+                ` : ''}
             `;
 
             document.getElementById('loading').style.display = 'none';
             document.getElementById('inviteContent').innerHTML = content;
             document.getElementById('inviteContent').style.display = 'block';
+            
+            // 로그인 상태 확인 및 버튼 텍스트 변경
+            const authToken = localStorage.getItem('mufi_token');
+            const acceptBtn = document.getElementById('acceptBtn');
+            if (!authToken && acceptBtn) {
+                acceptBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 로그인 후 참가하기';
+            }
         }
 
         // 에러 표시
@@ -364,30 +383,54 @@
         // 가입 처리
         async function handleAccept() {
             try {
-                const token = localStorage.getItem('mufi_token');
+                const authToken = localStorage.getItem('mufi_token');
 
                 // 로그인 확인
-                if (!token) {
-                    // 로그인 페이지로 리다이렉트 (토큰 포함)
-                    window.location.href = `/login?invite_token=${token}`;
+                if (!authToken) {
+                    // 로그인 페이지로 리다이렉트 (초대 토큰 포함)
+                    const inviteToken = pathParts[pathParts.length - 1];
+                    localStorage.setItem('pending_invite_token', inviteToken);
+                    window.location.href = `/login`;
                     return;
                 }
 
-                console.log('✅ 그룹 가입 처리 중...');
+                console.log('✅ 그룹 참가 처리 중...');
 
-                // TODO: API 연동
-                // const response = await fetch(`/api/invites/${token}/accept`, {
-                //     method: 'POST',
-                //     headers: { 'Authorization': `Bearer ${token}` }
-                // });
+                const inviteToken = pathParts[pathParts.length - 1];
+                
+                // 로딩 표시
+                const acceptBtn = event.target.closest('.btn-primary');
+                const originalText = acceptBtn.innerHTML;
+                acceptBtn.disabled = true;
+                acceptBtn.innerHTML = '<div class="loading-spinner" style="width: 16px; height: 16px; border: 2px solid #ffffff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto;"></div>';
+                
+                const response = await fetch(`/api/groups/invite/${inviteToken}/join`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
 
-                // 임시: 대시보드로 이동
-                alert('그룹에 가입되었습니다!');
-                window.location.href = '/dashboard';
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    alert('그룹에 성공적으로 참가했습니다!');
+                    window.location.href = '/dashboard#group';
+                } else {
+                    acceptBtn.disabled = false;
+                    acceptBtn.innerHTML = originalText;
+                    alert(data.detail || '그룹 참가에 실패했습니다. 다시 시도해주세요.');
+                }
 
             } catch (error) {
-                console.error('❌ 가입 처리 실패:', error);
-                alert('가입 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+                console.error('❌ 참가 처리 실패:', error);
+                const acceptBtn = event.target.closest('.btn-primary');
+                if (acceptBtn) {
+                    acceptBtn.disabled = false;
+                    acceptBtn.innerHTML = '<i class="fas fa-check"></i> 참가하기';
+                }
+                alert('참가 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
             }
         }
 
@@ -398,8 +441,22 @@
             }
         }
 
+        // 로그인 상태 확인 및 버튼 표시
+        function checkLoginStatus() {
+            const authToken = localStorage.getItem('mufi_token');
+            const acceptBtn = document.querySelector('.btn-primary');
+            
+            if (!authToken && acceptBtn) {
+                // 로그인하지 않은 경우 버튼 텍스트 변경
+                acceptBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 로그인 후 참가하기';
+            }
+        }
+
         // 페이지 로드 시 초대 정보 로드
         loadInviteInfo();
+        
+        // 로그인 상태 확인
+        setTimeout(checkLoginStatus, 100);
     </script>
 </body>
 </html>

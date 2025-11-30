@@ -1,0 +1,91 @@
+/* ============================================
+   버튼 스타일 - 검은색 테두리 + 흰색 베이스
+   ============================================ */
+.btn {
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    background: #ffffff;
+    color: #1e293b;
+    border: 1px solid #1e293b;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.btn:hover {
+    background: #1e293b;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(30, 41, 59, 0.2);
+}
+
+.btn-primary {
+    background: #ffffff;
+    color: #1e293b;
+    border: 1px solid #1e293b;
+}
+
+.btn-primary:hover {
+    background: #1e293b;
+    color: #ffffff;
+}
+
+.btn-secondary {
+    background: #ffffff;
+    color: #1e293b;
+    border: 1px solid #1e293b;
+}
+
+.btn-secondary:hover {
+    background: #1e293b;
+    color: #ffffff;
+}
+
+.btn-success {
+    background: #ffffff;
+    color: #1e293b;
+    border: 1px solid #1e293b;
+}
+
+.btn-success:hover {
+    background: #1e293b;
+    color: #ffffff;
+}
+
+.btn-danger {
+    background: #ffffff;
+    color: #1e293b;
+    border: 1px solid #1e293b;
+}
+
+.btn-danger:hover {
+    background: #1e293b;
+    color: #ffffff;
+}
+
+.btn-outline-primary {
+    background: #ffffff;
+    color: #1e293b;
+    border: 1px solid #1e293b;
+}
+
+.btn-outline-primary:hover {
+    background: #1e293b;
+    color: #ffffff;
+}
+
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+

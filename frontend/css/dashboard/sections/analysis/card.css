@@ -1,0 +1,75 @@
+.result-card { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; transition: all 0.3s ease; position: relative; overflow: hidden; }
+.result-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #1f2937 0%, #374151 100%); }
+.result-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); }
+
+.card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.card-title { font-size: 16px; font-weight: 600; color: #1f2937; margin: 0; line-height: 1.4; flex: 1; }
+.card-type { background: linear-gradient(135deg, #1f2937 0%, #374151 100%); color: white; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px; }
+.card-actions { display: flex; gap: 8px; }
+.action-btn { background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%); color: white; border: none; padding: 6px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; }
+.action-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3); }
+.edit-action-btn { background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%); }
+.edit-action-btn:hover { box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); }
+.delete-action-btn { background: linear-gradient(135deg, #ef4444 0%, #f87171 100%); }
+.delete-action-btn:hover { box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); }
+.edit-btn { background: linear-gradient(135deg, #1f2937 0%, #374151 100%); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; }
+.edit-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); }
+.add-schedule-btn { background: linear-gradient(135deg, #1f2937 0%, #374151 100%); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px; }
+.add-schedule-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(31, 41, 55, 0.3); }
+.add-schedule-btn i { font-size: 12px; }
+
+/* 편집 모드 비주얼 변화 제거 */
+.result-card.editing { }
+
+/* 편집 가능한 필드 스타일 */
+.editable-field { cursor: pointer; transition: none; border-radius: 0; padding: 0; margin: 0; position: relative; }
+.editable-field:hover { background-color: transparent; box-shadow: none; }
+.editable-field:hover::after { content: none; }
+
+/* 편집 모드에서만 필드 편집 가능(비주얼 변화 없음) */
+.editable-field.editable-mode { cursor: pointer; background-color: transparent; border: none; padding: 0; margin: 0; }
+.editable-field.editable-mode:hover { background-color: transparent; border: none; }
+
+/* 편집 중인 필드에 대한 스타일 - 최대한 원래 디자인 유지 */
+.editable-field.editing-field { position: relative; }
+
+/* 입력 필드(인라인) - 원래 텍스트 스타일 유지 */
+.edit-input,
+.edit-textarea { background: transparent; border: none; padding: 0; margin: 0; font: inherit; color: inherit; width: 100%; outline: none; box-shadow: none; }
+.edit-input:focus,
+.edit-textarea:focus { border: none; box-shadow: none; }
+
+/* textarea 높이 */
+.edit-textarea { min-height: 1.6em; line-height: 1.5; resize: vertical; }
+
+/* datetime-local 인라인 스타일(테두리 제거) */
+input[type="datetime-local"].edit-input { height: auto; background: transparent; border: none; padding: 0; }
+
+/* 편집 성공 애니메이션 (유지) */
+.result-card.edit-success { border-color: #22c55e; box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1); }
+
+/* 폼 유틸 */
+.edit-actions { position: absolute; bottom: 12px; right: 12px; display: flex; gap: 8px; z-index: 10; }
+.btn-complete-inline { background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; }
+.btn-complete-inline:hover { background: #047857; }
+.btn-cancel-inline { background: #6b7280; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; }
+.btn-cancel-inline:hover { background: #4b5563; }
+
+.card-content { margin-bottom: 15px; }
+.card-description { color: #6b7280; font-size: 14px; line-height: 1.5; margin-bottom: 12px; }
+.card-details { display: grid; gap: 8px; font-size: 13px; }
+.card-detail { display: flex; align-items: center; gap: 8px; color: #374151; }
+.card-detail i { color: #1f2937; width: 14px; text-align: center; }
+/* 날짜 줄 잘림 방지 */
+.card-detail { flex-wrap: wrap; }
+.card-detail span { white-space: nowrap; }
+.card-detail .editable-field[data-field="end_datetime"] { padding-right: 6px; }
+.card-participants { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6; }
+.participants-title { font-size: 12px; font-weight: 500; color: #6b7280; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.participants-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.participant-tag { background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); color: #374151; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+
+.new-schedule-card { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 2px dashed #d1d5db; border-radius: 12px; padding: 20px; transition: all 0.3s ease; position: relative; }
+.new-schedule-card:hover { border-color: #1f2937; background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); }
+.new-schedule-card .edit-form { display: block; margin-top: 0; padding-top: 0; border-top: none; }
+

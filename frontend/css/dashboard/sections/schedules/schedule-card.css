@@ -1,0 +1,325 @@
+/* ============================================
+   일정 그룹 및 카드
+   ============================================ */
+.schedule-group {
+    margin-bottom: 2rem;
+}
+
+.group-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.group-title i {
+    color: #3b82f6;
+}
+
+.schedule-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.schedule-card:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+.schedule-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.schedule-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.schedule-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+
+.schedule-type {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.schedule-type.group {
+    background: #dcfce7;
+    color: #059669;
+}
+
+.schedule-type.personal {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.schedule-content {
+    color: #475569;
+}
+
+.schedule-description {
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+.schedule-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 0.875rem;
+    margin-top: 1rem;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9375rem;
+    padding: 0.875rem 1rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
+}
+
+.detail-item:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.detail-item i {
+    color: #64748b;
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.detail-item.location i {
+    color: #ef4444;
+}
+
+.detail-item.time i {
+    color: #3b82f6;
+}
+
+.detail-item.participants i {
+    color: #059669;
+}
+
+.participants-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.participants-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.participants-toggle {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.participants-toggle:hover {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.participants-toggle i {
+    font-size: 0.75rem;
+    transition: transform 0.2s ease;
+}
+
+.participants-toggle.expanded i {
+    transform: rotate(180deg);
+}
+
+.participants-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 0.5rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 0.5rem;
+    z-index: 10;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.participants-dropdown.show {
+    display: block;
+}
+
+.participant-item {
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: #475569;
+    transition: background 0.2s ease;
+}
+
+.participant-item:hover {
+    background: #f8fafc;
+}
+
+.schedule-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f1f5f9;
+    justify-content: flex-end;
+}
+
+.schedule-actions .btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+}
+
+.schedule-actions .btn-sm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.schedule-actions .btn-outline-success:hover {
+    background: #059669;
+    border-color: #059669;
+    color: white;
+}
+
+.schedule-actions .btn-outline-info:hover {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+.schedule-actions .btn-outline-secondary:hover {
+    background: #64748b;
+    border-color: #64748b;
+    color: white;
+}
+
+.schedule-actions .btn-outline-danger:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: white;
+}
+
+/* ============================================
+   일정 편집 모드
+   ============================================ */
+.schedule-card.editing {
+    border: 2px solid #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    background: #f8fafc;
+}
+
+.schedule-card.editing .edit-input,
+.schedule-card.editing .edit-textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    background: white;
+    transition: border-color 0.2s ease;
+}
+
+.schedule-card.editing .edit-input:focus,
+.schedule-card.editing .edit-textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.schedule-card.editing .edit-textarea {
+    min-height: 60px;
+    resize: vertical;
+}
+
+.time-edit-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.time-edit-container input {
+    flex: 1;
+    min-width: 120px;
+}
+
+.time-edit-container span {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.schedule-card.editing .schedule-actions .btn-success {
+    background: #059669;
+    border-color: #059669;
+    color: white;
+}
+
+.schedule-card.editing .schedule-actions .btn-success:hover {
+    background: #047857;
+    border-color: #047857;
+}
+
+.schedule-card.editing .schedule-actions .btn-danger {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: white;
+}
+
+.schedule-card.editing .schedule-actions .btn-danger:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+

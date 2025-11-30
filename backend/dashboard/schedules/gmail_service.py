@@ -113,7 +113,7 @@ class GmailService:
         """일정 정보를 이메일로 전송 (ICS 첨부 및 다중 수신자 지원)"""
         try:
             # 이메일 제목 생성
-            final_subject = subject or f"[MUFI] 일정 공유: {schedule_data.get('title', '제목 없음')}"
+            final_subject = subject or f"[SULLIVAN] 일정 공유: {schedule_data.get('title', '제목 없음')}"
             
             # 이메일 본문 생성 (HTML)
             body = self._create_schedule_email_body(schedule_data)
@@ -191,7 +191,7 @@ class GmailService:
     def _create_ics_attachment(self, schedule_data):
         """일정 데이터를 기반으로 단일 이벤트 ICS 문자열 생성"""
         try:
-            uid = f"mufi-{uuid.uuid4()}@mufi"
+            uid = f"sullivan-{uuid.uuid4()}@sullivan"
             dtstamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
             dtstart = self._format_dt_for_ics(schedule_data.get('start_datetime', ''))
             dtend = self._format_dt_for_ics(schedule_data.get('end_datetime', ''))
@@ -201,7 +201,7 @@ class GmailService:
 
             ics = []
             ics.append('BEGIN:VCALENDAR')
-            ics.append('PRODID:-//MUFI//Calendar 1.0//KO')
+            ics.append('PRODID:-//SULLIVAN//Calendar 1.0//KO')
             ics.append('VERSION:2.0')
             ics.append('CALSCALE:GREGORIAN')
             ics.append('METHOD:PUBLISH')
@@ -262,7 +262,7 @@ class GmailService:
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>MUFI 일정 공유</h1>
+                    <h1>SULLIVAN 일정 공유</h1>
                 </div>
                 <div class="content">
                     <div class="schedule-item">
@@ -291,7 +291,7 @@ class GmailService:
                     </div>
                 </div>
                 <div class="footer">
-                    <p>이 이메일은 MUFI 시스템에서 자동으로 발송되었습니다.</p>
+                    <p>이 이메일은 SULLIVAN 시스템에서 자동으로 발송되었습니다.</p>
                 </div>
             </div>
         </body>

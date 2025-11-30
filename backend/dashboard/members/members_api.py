@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import List, Dict, Any
+from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
 import os
+import re
 from supabase import create_client, Client
 from ..auth.auth_service import verify_token
 
@@ -14,6 +16,12 @@ router = APIRouter(prefix="/api/members", tags=["인원 관리"])
 
 # JWT 토큰 검증
 security = HTTPBearer()
+
+# 요청 모델
+class AddExternalContactRequest(BaseModel):
+    name: str
+    email: str
+    relationship: Optional[str] = None
 
 @router.get("/mufi-users")
 async def get_mufi_users(
@@ -120,10 +128,7 @@ async def get_external_contacts(
                             'name': c.get('name'),
                             'email': c.get('email'),
                             'created_at': c.get('created_at'),
-                            'phone': c.get('phone'),
-                            'company': c.get('company'),
-                            'position': c.get('position'),
-                            'notes': c.get('notes')
+                            'relationship': c.get('relationship')
                         })
 
             # 응답 구성
@@ -219,7 +224,7 @@ async def delete_user(
 
 @router.post("/external-contacts")
 async def add_external_contact(
-    contact_data: dict,
+    request: AddExternalContactRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """
@@ -230,39 +235,28 @@ async def add_external_contact(
         user_data = verify_token(credentials.credentials)
         user_id = user_data.get('sub', user_data.get('email', 'unknown'))
         
-        # user_id를 integer로 변환
-        query_user_id_int = None
-        try:
-            if isinstance(user_id, str) and user_id.isdigit():
-                query_user_id_int = int(user_id)
-            elif isinstance(user_id, int):
-                query_user_id_int = user_id
-        except:
-            raise HTTPException(status_code=400, detail="유효하지 않은 사용자 ID입니다.")
+        # users 테이블에서 사용자 ID 찾기
+        user_result = supabase.table('users').select('id').eq('email', user_data.get('email', '')).execute()
+        if not user_result.data:
+            raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
         
-        if query_user_id_int is None:
-            raise HTTPException(status_code=400, detail="유효하지 않은 사용자 ID입니다.")
+        query_user_id_int = user_result.data[0]['id']
         
         print(f"👥 외부 인원 추가 시작")
         print(f"👤 요청자: {user_data.get('email', 'unknown')}")
-        print(f"📝 추가할 인원 정보: {contact_data}")
+        print(f"📝 추가할 인원 정보: {request.dict()}")
         
-        # 필수 필드 확인
-        if not contact_data.get('name'):
-            raise HTTPException(status_code=400, detail="이름은 필수 입력 항목입니다.")
-        
-        if not contact_data.get('email'):
-            raise HTTPException(status_code=400, detail="이메일은 필수 입력 항목입니다.")
+        # 이메일 형식 검증
+        email_pattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+        if not re.match(email_pattern, request.email):
+            raise HTTPException(status_code=400, detail="올바른 이메일 형식을 입력해주세요.")
         
         # 외부 인원 추가
         insert_data = {
             'user_id': query_user_id_int,
-            'name': contact_data.get('name'),
-            'email': contact_data.get('email'),
-            'phone': contact_data.get('phone'),
-            'company': contact_data.get('company'),
-            'position': contact_data.get('position'),
-            'notes': contact_data.get('notes')
+            'name': request.name,
+            'email': request.email,
+            'relationship': request.relationship
         }
         
         result = supabase.table('external_personnel').insert(insert_data).execute()

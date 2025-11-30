@@ -157,55 +157,55 @@ class SchedulesSection {
 
     // 세션 상세 모달 표시
     showSessionDetailsModal(sessionData) {
+        // 기존 모달이 있으면 닫기
+        const existingModal = document.querySelector('.modal-overlay');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
         modal.innerHTML = `
-            <div class="modal-content session-details-modal">
+            <div class="modal-content" style="max-width: 700px;">
                 <div class="modal-header">
-                    <h2>${sessionData.session.analysis_source_name}</h2>
-                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
+                    <h2 class="modal-title">통화 분석 결과</h2>
+                    <p class="modal-subtitle">${sessionData.session.analysis_source_name}</p>
                 </div>
+
                 <div class="modal-body">
-                    <div class="session-summary">
-                        <div class="summary-item">
-                            <span class="label">생성일:</span>
-                            <span class="value">${new Date(sessionData.session.created_at).toLocaleString('ko-KR')}</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">총 일정:</span>
-                            <span class="value">${sessionData.session.total_schedules}개</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">그룹 일정:</span>
-                            <span class="value">${sessionData.session.group_count}개</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">개인 일정:</span>
-                            <span class="value">${sessionData.session.personal_count}개</span>
-                        </div>
-                    </div>
-                    
-                    <div class="schedules-list">
-                        ${this.renderSchedulesList(sessionData.schedules)}
+                    <div class="group-schedules">
+                        ${this.renderSchedulesListSimple(sessionData.schedules)}
                     </div>
                 </div>
-                <div class="modal-footer">
+
+                <div class="modal-actions">
                     <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">
-                        <i class="fas fa-times"></i> 닫기
-                    </button>
-                    <button class="btn btn-danger" onclick="window.schedulesSection.deleteSession('${sessionData.session.analysis_session_id}')">
-                        <i class="fas fa-trash"></i> 일정 삭제
+                        닫기
                     </button>
                 </div>
             </div>
         `;
 
+        // 모달 외부 클릭 시 닫기
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+
+        // ESC 키로 닫기
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+
         document.body.appendChild(modal);
     }
 
-    // 일정 목록 렌더링
+    // 일정 목록 렌더링 (상세 모달용)
     renderSchedulesList(schedules) {
         let html = '';
 
@@ -236,46 +236,303 @@ class SchedulesSection {
         return html;
     }
 
+    // 일정 목록 렌더링 (그룹 관리 모달 스타일 - 간단한 버전)
+    renderSchedulesListSimple(schedules) {
+        let html = '';
+        const groupSchedules = schedules.group || [];
+        const personalSchedules = schedules.personal || [];
+
+        // 일정이 없는 경우
+        if (groupSchedules.length === 0 && personalSchedules.length === 0) {
+            html += `
+                <div class="empty-state" style="padding: 2rem;">
+                    <i class="fas fa-calendar-plus fa-2x"></i>
+                    <p style="margin-top: 1rem;">저장된 일정이 없습니다.</p>
+                </div>
+            `;
+            return html;
+        }
+
+        // 그룹 일정 섹션
+        if (groupSchedules.length > 0) {
+            html += `
+                <div class="group-schedules-section" style="margin-bottom: 2rem;">
+                    <div class="group-schedules-header">
+                        <h3 class="group-schedules-title">
+                            <i class="fas fa-users"></i> 그룹 일정 (${groupSchedules.length}개)
+                        </h3>
+                    </div>
+                    ${groupSchedules.map(schedule => this.renderScheduleItemSimple(schedule)).join('')}
+                </div>
+            `;
+        }
+
+        // 개인 일정 섹션
+        if (personalSchedules.length > 0) {
+            html += `
+                <div class="group-schedules-section">
+                    <div class="group-schedules-header">
+                        <h3 class="group-schedules-title">
+                            <i class="fas fa-user"></i> 개인 일정 (${personalSchedules.length}개)
+                        </h3>
+                    </div>
+                    ${personalSchedules.map(schedule => this.renderScheduleItemSimple(schedule)).join('')}
+                </div>
+            `;
+        }
+
+        return html;
+    }
+
+    // 일정 아이템 렌더링 (간단한 버전)
+    renderScheduleItemSimple(schedule) {
+        const startDate = new Date(schedule.start_datetime);
+        const endDate = new Date(schedule.end_datetime);
+        const formattedDateTime = `${startDate.toLocaleDateString('ko-KR')} ${startDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} - ${endDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`;
+
+        return `
+            <div class="schedule-item" data-schedule-id="${schedule.id}">
+                <div class="schedule-item-title">${schedule.title || '제목 없음'}</div>
+                <div class="schedule-item-time">
+                    <i class="fas fa-calendar"></i>
+                    ${formattedDateTime}
+                </div>
+                <div class="schedule-item-actions">
+                    <button class="btn btn-sm btn-outline-primary" onclick="window.schedulesSection.editSchedule('${schedule.id}')" title="편집">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-success" onclick="window.schedulesSection.addToCalendar('${schedule.id}')" title="캘린더에 추가">
+                        <i class="fas fa-calendar-plus"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-info" onclick="window.schedulesSection.sendEmail('${schedule.id}')" title="메일 보내기">
+                        <i class="fas fa-envelope"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="window.schedulesSection.shareSchedule('${schedule.id}')" title="공유">
+                        <i class="fas fa-share-alt"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="window.schedulesSection.deleteSchedule('${schedule.id}')" title="삭제">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // 모달 내 schedule-item 편집 모달 표시
+    showEditModalForScheduleItem(scheduleId) {
+        // 현재 세션에서 일정 데이터 찾기
+        let schedule = null;
+        if (this.currentSession && this.currentSession.schedules) {
+            const allSchedules = [...(this.currentSession.schedules.group || []), ...(this.currentSession.schedules.personal || [])];
+            schedule = allSchedules.find(s => s.id === scheduleId);
+        }
+
+        if (!schedule) {
+            this.showNotification('일정을 찾을 수 없습니다.', 'error');
+            return;
+        }
+
+        // 시간 포맷팅
+        const startDate = new Date(schedule.start_datetime);
+        const endDate = new Date(schedule.end_datetime);
+        const startDateTime = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}T${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`;
+        const endDateTime = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}T${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+
+        const participants = this.formatParticipants(schedule.participants);
+
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h2 class="modal-title">일정 편집</h2>
+                    <p class="modal-subtitle">${schedule.title || '제목 없음'}</p>
+                </div>
+
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>제목</label>
+                        <input type="text" class="form-control" id="edit-title" value="${schedule.title || ''}" placeholder="일정 제목">
+                    </div>
+
+                    <div class="form-group">
+                        <label>설명</label>
+                        <textarea class="form-control" id="edit-description" rows="3" placeholder="일정 설명">${schedule.description || ''}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>장소</label>
+                        <input type="text" class="form-control" id="edit-location" value="${schedule.location || ''}" placeholder="장소">
+                    </div>
+
+                    <div class="form-group">
+                        <label>시작 시간</label>
+                        <input type="datetime-local" class="form-control" id="edit-start-datetime" value="${startDateTime}">
+                    </div>
+
+                    <div class="form-group">
+                        <label>종료 시간</label>
+                        <input type="datetime-local" class="form-control" id="edit-end-datetime" value="${endDateTime}">
+                    </div>
+
+                    <div class="form-group">
+                        <label>참여자</label>
+                        <input type="text" class="form-control" id="edit-participants" value="${participants}" placeholder="참여자 이름을 쉼표로 구분">
+                        <div class="helper-text">참여자 이름을 쉼표(,)로 구분하여 입력하세요</div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">
+                        취소
+                    </button>
+                    <button class="btn btn-primary" onclick="window.schedulesSection.saveScheduleEdit('${scheduleId}', this.closest('.modal-overlay'))">
+                        저장
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // 모달 외부 클릭 시 닫기
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+
+        // ESC 키로 닫기
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+
+        document.body.appendChild(modal);
+    }
+
+    // 일정 편집 저장
+    async saveScheduleEdit(scheduleId, modalElement) {
+        try {
+            const editedData = {
+                title: document.getElementById('edit-title').value.trim(),
+                description: document.getElementById('edit-description').value.trim(),
+                location: document.getElementById('edit-location').value.trim(),
+                start_datetime: new Date(document.getElementById('edit-start-datetime').value).toISOString(),
+                end_datetime: new Date(document.getElementById('edit-end-datetime').value).toISOString(),
+                participants: document.getElementById('edit-participants').value.trim().split(',').map(p => p.trim()).filter(p => p)
+            };
+
+            // 서버에 업데이트 요청
+            const token = localStorage.getItem('mufi_token');
+            const response = await fetch(`/api/schedules/schedule/${scheduleId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(editedData)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                this.showNotification('일정이 성공적으로 수정되었습니다.', 'success');
+                modalElement.remove();
+                
+                // 모달이 열려있으면 세션 상세 정보 다시 로드
+                const currentModal = document.querySelector('.modal-overlay');
+                if (currentModal) {
+                    const modalTitle = currentModal.querySelector('.modal-title');
+                    if (modalTitle && modalTitle.textContent === '통화 분석 결과') {
+                        // 현재 세션 ID 찾기
+                        const sessionId = this.currentSession?.session?.analysis_session_id;
+                        if (sessionId) {
+                            // 기존 모달 닫기
+                            currentModal.remove();
+                            // 세션 상세 정보 다시 로드
+                            await this.viewSessionDetails(sessionId);
+                        }
+                    }
+                }
+            } else {
+                this.showNotification(result.detail || '일정 수정에 실패했습니다.', 'error');
+            }
+        } catch (error) {
+            console.error('일정 수정 오류:', error);
+            this.showNotification('일정 수정 중 오류가 발생했습니다.', 'error');
+        }
+    }
+
     // 일정 카드 렌더링
     renderScheduleCard(schedule) {
         const startDate = new Date(schedule.start_datetime);
         const endDate = new Date(schedule.end_datetime);
 
-        const formattedStart = startDate.toLocaleString('ko-KR', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
+        const formattedDate = startDate.toLocaleDateString('ko-KR', {
+            month: 'long',
+            day: 'numeric'
         });
 
-        const formattedEnd = endDate.toLocaleString('ko-KR', {
+        const formattedStart = startDate.toLocaleTimeString('ko-KR', {
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
+            hour12: true
         });
+
+        const formattedEnd = endDate.toLocaleTimeString('ko-KR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+
+        const participants = this.formatParticipants(schedule.participants);
+        const participantsList = Array.isArray(schedule.participants) ? schedule.participants : 
+                               (schedule.participants ? schedule.participants.split(',').map(p => p.trim()) : []);
 
         return `
             <div class="schedule-card" data-schedule-id="${schedule.id}">
                 <div class="schedule-header">
-                    <h4 class="schedule-title">${schedule.title}</h4>
-                    <span class="schedule-type ${schedule.schedule_type}">
-                        ${schedule.schedule_type === 'group' ? '그룹' : '개인'}
-                    </span>
+                    <div class="schedule-title-wrapper">
+                        <h4 class="schedule-title">${schedule.title || '제목 없음'}</h4>
+                        <span class="schedule-type ${schedule.schedule_type}">
+                            ${schedule.schedule_type === 'group' ? '그룹' : '개인'}
+                        </span>
+                    </div>
                 </div>
                 <div class="schedule-content">
-                    <p class="schedule-description">${schedule.description}</p>
+                    ${schedule.description ? `
+                        <p class="schedule-description">
+                            <i class="fas fa-align-left"></i>
+                            ${schedule.description}
+                        </p>
+                    ` : ''}
                     <div class="schedule-details">
-                        <div class="detail-item">
+                        <div class="detail-item location">
                             <i class="fas fa-map-marker-alt"></i>
-                            <span>${schedule.location || '장소 미정'}</span>
+                            <span>${schedule.location || '미정'}</span>
                         </div>
-                        <div class="detail-item">
+                        <div class="detail-item time">
                             <i class="fas fa-clock"></i>
-                            <span>${formattedStart} - ${formattedEnd}</span>
+                            <span>${formattedDate} ${formattedStart} - ${formattedEnd}</span>
                         </div>
-                                                 <div class="detail-item">
-                             <i class="fas fa-users"></i>
-                             <span>${this.formatParticipants(schedule.participants)}</span>
-                         </div>
+                        ${participantsList.length > 0 ? `
+                            <div class="detail-item participants">
+                                <i class="fas fa-users"></i>
+                                <div class="participants-wrapper">
+                                    <span class="participants-text">${participants}</span>
+                                    ${participantsList.length > 3 ? `
+                                        <button class="participants-toggle" onclick="this.classList.toggle('expanded'); this.nextElementSibling.classList.toggle('show');">
+                                            <i class="fas fa-chevron-down"></i>
+                                        </button>
+                                        <div class="participants-dropdown">
+                                            ${participantsList.map(p => `<div class="participant-item">${p}</div>`).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
                 <div class="schedule-actions">
@@ -668,27 +925,246 @@ class SchedulesSection {
     }
 
     // 개별 일정 공유
-    shareSchedule(scheduleId) {
-        this.showNotification(`일정 ID ${scheduleId}를 공유합니다.`, 'info');
-        // TODO: 개별 일정 공유 로직 구현
+    async shareSchedule(scheduleId) {
+        try {
+            const token = localStorage.getItem('mufi_token');
+            if (!token) {
+                this.showNotification('로그인이 필요합니다.', 'error');
+                return;
+            }
+
+            // 사용자가 속한 그룹 목록 가져오기
+            const groupsResponse = await fetch('/api/groups', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            const groupsData = await groupsResponse.json();
+
+            if (!groupsResponse.ok || !groupsData.success) {
+                this.showNotification('그룹 목록을 불러오는데 실패했습니다.', 'error');
+                return;
+            }
+
+            const groups = groupsData.data.groups || [];
+
+            if (groups.length === 0) {
+                this.showNotification('공유할 그룹이 없습니다. 먼저 그룹을 생성하세요.', 'info');
+                return;
+            }
+
+            // 그룹 선택 모달 표시
+            this.showGroupSelectModal(scheduleId, groups);
+
+        } catch (error) {
+            console.error('❌ 일정 공유 오류:', error);
+            this.showNotification('일정 공유 중 오류가 발생했습니다.', 'error');
+        }
+    }
+
+    // 그룹 선택 모달 표시
+    showGroupSelectModal(scheduleId, groups) {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.setAttribute('data-modal-type', 'select-group');
+
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h2 class="modal-title">그룹에 일정 공유</h2>
+                    <p class="modal-subtitle">공유할 그룹을 선택하세요</p>
+                </div>
+
+                <div class="modal-body">
+                    <div class="group-select-list" style="max-height: 400px; overflow-y: auto;">
+                        ${groups.map((group, index) => `
+                            <div class="group-select-item" style="padding: 1rem; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 0.5rem; cursor: pointer; transition: all 0.2s;" 
+                                 data-group-id="${group.id}">
+                                <label for="group-checkbox-${index}" style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; margin: 0; width: 100%;">
+                                    <input type="checkbox" id="group-checkbox-${index}" value="${group.id}" class="group-checkbox" style="width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; pointer-events: auto;">
+                                    <div style="flex: 1; pointer-events: none;">
+                                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 0.25rem;">${group.group_name}</div>
+                                        <div style="font-size: 0.85rem; color: #64748b;">
+                                            멤버 ${group.member_count}명 · 일정 ${group.schedule_count}개
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" data-action="close-group-select-modal">
+                        취소
+                    </button>
+                    <button class="btn btn-primary" data-action="confirm-share-schedule" data-schedule-id="${scheduleId}">
+                        <i class="fas fa-share-alt"></i> 공유하기
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // 모달 외부 클릭 시 닫기
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+
+        // 취소 버튼
+        const closeBtn = modal.querySelector('[data-action="close-group-select-modal"]');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                modal.remove();
+            });
+        }
+
+        // 공유하기 버튼
+        const confirmBtn = modal.querySelector('[data-action="confirm-share-schedule"]');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', async () => {
+                const selectedGroups = Array.from(modal.querySelectorAll('input[type=checkbox]:checked'))
+                    .map(cb => parseInt(cb.value));
+
+                if (selectedGroups.length === 0) {
+                    this.showNotification('공유할 그룹을 선택해주세요.', 'error');
+                    return;
+                }
+
+                await this.confirmShareSchedule(scheduleId, selectedGroups);
+                modal.remove();
+            });
+        }
+
+        // 그룹 아이템 클릭 시 체크박스 토글 (체크박스 직접 클릭 제외)
+        modal.querySelectorAll('.group-select-item').forEach(item => {
+            const checkbox = item.querySelector('input[type=checkbox]');
+            const label = item.querySelector('label');
+            
+            // 아이템 클릭 시 (라벨 영역 제외 - 라벨은 자동으로 체크박스를 토글함)
+            item.addEventListener('click', (e) => {
+                // 라벨이나 체크박스가 아닌 영역 클릭 시에만 수동 토글
+                if (e.target === item || (!label.contains(e.target) && e.target !== checkbox)) {
+                    checkbox.checked = !checkbox.checked;
+                }
+            });
+        });
+    }
+
+    // 일정 공유 확인
+    async confirmShareSchedule(scheduleId, groupIds) {
+        try {
+            const token = localStorage.getItem('mufi_token');
+            
+            const response = await fetch('/api/groups/schedules/share', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    schedule_id: scheduleId,
+                    group_ids: groupIds
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                const sharedCount = data.data.shared_groups ? data.data.shared_groups.length : 0;
+                const alreadySharedCount = data.data.already_shared_groups ? data.data.already_shared_groups.length : 0;
+                const failedCount = data.data.failed_groups ? data.data.failed_groups.length : 0;
+                
+                console.log('📊 공유 결과:', { sharedCount, alreadySharedCount, failedCount });
+                console.log('📊 응답 데이터:', data.data);
+                
+                // 실패한 그룹의 이유 확인
+                if (failedCount > 0 && data.data.failed_groups) {
+                    console.log('❌ 실패한 그룹 상세:', data.data.failed_groups);
+                    data.data.failed_groups.forEach(failed => {
+                        console.log(`  - 그룹 ID ${failed.group_id}: ${failed.reason}`);
+                    });
+                }
+                
+                // 이미 공유된 그룹이 응답에 없는 경우 확인
+                if (alreadySharedCount === 0 && data.data.already_shared_groups === undefined) {
+                    console.warn('⚠️ 응답에 already_shared_groups가 없습니다. 백엔드 서버를 재시작해주세요.');
+                }
+                
+                let message = '';
+                
+                // 새로 공유된 그룹이 있는 경우
+                if (sharedCount > 0) {
+                    message = `${sharedCount}개 그룹에 일정이 공유되었습니다.`;
+                }
+                
+                // 이미 공유된 그룹이 있는 경우
+                if (alreadySharedCount > 0) {
+                    if (message) {
+                        message += ` ${alreadySharedCount}개 그룹에는 이미 공유되어 있습니다.`;
+                    } else {
+                        message = `${alreadySharedCount}개 그룹에는 이미 공유되어 있습니다.`;
+                    }
+                }
+                
+                // 실패한 그룹이 있는 경우만 실패 메시지 추가
+                if (failedCount > 0) {
+                    if (message) message += ' ';
+                    message += `(${failedCount}개 실패)`;
+                }
+                
+                if (!message) {
+                    message = '공유할 그룹을 선택해주세요.';
+                }
+                
+                // 성공/정보/경고 구분
+                // 실패가 없고 이미 공유된 그룹만 있으면 info, 새로 공유된 그룹이 있으면 success
+                if (failedCount === 0) {
+                    if (sharedCount > 0) {
+                        this.showNotification(message, 'success');
+                    } else if (alreadySharedCount > 0) {
+                        this.showNotification(message, 'info');
+                    } else {
+                        this.showNotification(message, 'info');
+                    }
+                } else {
+                    this.showNotification(message, 'warning');
+                }
+            } else {
+                throw new Error(data.detail || '일정 공유에 실패했습니다.');
+            }
+
+        } catch (error) {
+            console.error('❌ 일정 공유 오류:', error);
+            this.showNotification(error.message || '일정 공유에 실패했습니다.', 'error');
+        }
     }
 
     // 일정 편집
     editSchedule(scheduleId) {
-        const scheduleCard = document.querySelector(`[data-schedule-id="${scheduleId}"]`);
-        if (!scheduleCard) {
+        // 먼저 schedule-card를 찾고, 없으면 schedule-item을 찾음
+        let scheduleElement = document.querySelector(`.schedule-card[data-schedule-id="${scheduleId}"]`);
+        if (!scheduleElement) {
+            scheduleElement = document.querySelector(`.schedule-item[data-schedule-id="${scheduleId}"]`);
+        }
+        
+        if (!scheduleElement) {
             this.showNotification('일정을 찾을 수 없습니다.', 'error');
             return;
         }
 
-        // 편집 모드 활성화
-        scheduleCard.classList.add('editing');
+        // schedule-item인 경우 모달 내 편집 모달 열기
+        if (scheduleElement.classList.contains('schedule-item')) {
+            this.showEditModalForScheduleItem(scheduleId);
+            return;
+        }
 
-        // 편집 가능한 필드들을 입력 필드로 변환
-        this.convertScheduleFieldsToInputs(scheduleCard, scheduleId);
-
-        // 편집 액션 버튼 표시
-        this.showScheduleEditActions(scheduleCard, scheduleId);
+        // schedule-card인 경우 기존 편집 모드 활성화
+        scheduleElement.classList.add('editing');
+        this.convertScheduleFieldsToInputs(scheduleElement, scheduleId);
+        this.showScheduleEditActions(scheduleElement, scheduleId);
     }
 
     // 일정 필드를 입력 필드로 변환

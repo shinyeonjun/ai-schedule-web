@@ -34,6 +34,13 @@ const login = {
     checkUrlToken() {
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
+        const inviteToken = urlParams.get('invite_token');
+        
+        // 초대 토큰 저장
+        if (inviteToken) {
+            console.log('🎫 초대 토큰 발견:', inviteToken);
+            localStorage.setItem('pending_invite_token', inviteToken);
+        }
         
         if (token) {
             console.log('🎫 URL에서 토큰 발견');
@@ -85,6 +92,15 @@ const login = {
 
     // 대시보드로 리다이렉트
     redirectToDashboard() {
+        // 초대 토큰이 있으면 초대 페이지로 리다이렉트
+        const inviteToken = localStorage.getItem('pending_invite_token');
+        if (inviteToken) {
+            console.log('🎫 초대 토큰 발견, 초대 페이지로 리다이렉트');
+            localStorage.removeItem('pending_invite_token');
+            window.location.href = `/invite/${inviteToken}`;
+            return;
+        }
+        
         console.log('📊 대시보드로 리다이렉트');
         window.location.href = '/dashboard';
     },
