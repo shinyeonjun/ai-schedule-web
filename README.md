@@ -8,7 +8,7 @@
 
 ![AI Schedule Web 미리보기](docs/assets/schedule-analysis.png)
 
-## 한눈에 보기
+## What it demonstrates
 
 - GPT 기반 일정 정보 추출
 - JSON 템플릿 기반 출력 구조 고정
@@ -32,6 +32,8 @@
 
 ## 실행
 
+Google OAuth, OpenAI, Supabase 관련 값은 로컬 환경 변수로 설정해야 합니다. 실제 키·토큰은 저장소에 넣지 않습니다.
+
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\activate
@@ -44,3 +46,7 @@ python backend/start_server.py
 - `http://localhost:8000/login.html`
 - `http://localhost:8000/dashboard.html`
 - `http://localhost:8000/docs`
+
+## Scope
+
+이 저장소는 개인 프로젝트의 기능·연동 흐름을 보여주기 위한 공개 코드입니다. 외부 서비스 연동을 재현하려면 각자의 Google, OpenAI, Supabase 설정이 필요합니다.
